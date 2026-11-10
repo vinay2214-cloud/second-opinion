@@ -1,0 +1,12 @@
+len-1 elapsed=427.0s arrivals=14 surgeArrivals=4 lastArrival=377.0s driftCue=advisor=dash after resolved=7 errors=0 drift=dash/cardiac@8
+len-2 elapsed=428.1s arrivals=14 surgeArrivals=4 lastArrival=378.1s driftCue=advisor=sage after resolved=7 errors=0 drift=sage/cardiac@8
+len-3 elapsed=427.0s arrivals=14 surgeArrivals=4 lastArrival=377.0s driftCue=advisor=dash after resolved=7 errors=0 drift=dash/cardiac@8
+len-4 elapsed=430.1s arrivals=14 surgeArrivals=4 lastArrival=380.1s driftCue=advisor=sage after resolved=7 errors=0 drift=sage/children@8
+len-5 elapsed=409.0s arrivals=14 surgeArrivals=4 lastArrival=359.0s driftCue=advisor=sage after resolved=7 errors=0 drift=sage/injury@8
+len-6 elapsed=434.1s arrivals=14 surgeArrivals=4 lastArrival=384.1s driftCue=advisor=dash after resolved=7 errors=0 drift=dash/cardiac@8
+TIMEOUT waiting for shift] end
+len-7 TIMEOUT
+len-8 elapsed=439.1s arrivals=14 surgeArrivals=4 lastArrival=389.1s driftCue=advisor=sage after resolved=7 errors=0 drift=sage/cardiac@8
+len-9 elapsed=431.0s arrivals=14 surgeArrivals=4 lastArrival=381.0s driftCue=advisor=dash after resolved=7 errors=0 drift=dash/breathing@8
+len-10 elapsed=431.1s arrivals=14 surgeArrivals=4 lastArrival=381.0s driftCue=advisor=dash after resolved=7 errors=0 drift=dash/cardiac@8
+len-7 rerun: elapsed=431.0s arrivals=14 surgeArrivals=4 lastArrival=381.0s driftCue=advisor=dash after resolved=7 errors=0 drift=dash/cardiac@8 (first attempt: the scripted poke on the Module 3 button missed; no 'start pressed' line)

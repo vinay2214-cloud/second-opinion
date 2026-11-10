@@ -89,7 +89,7 @@ export function bootstrapWard(world: World): WardRuntime {
     parts.content.add(panel.mesh);
     world.createTransformEntity(panel.mesh, { parent: contentEntity });
   }
-  parts.content.add(ui.card.mesh, ui.keep.root, ui.start.root, ui.pause.root);
+  parts.content.add(ui.card.mesh, ui.keep.root, ui.pause.root, ...ui.starts.map((b) => b.root));
   const pokeable = (object: Parameters<World['createTransformEntity']>[0]) =>
     world
       .createTransformEntity(object, { parent: contentEntity })
@@ -98,10 +98,12 @@ export function bootstrapWard(world: World): WardRuntime {
   pokeable(ui.card.mesh).addComponent(VitalsCard);
   pokeable(ui.keep.root).addComponent(KeepButton);
   pokeable(ui.pause.root).addComponent(PauseButton);
-  // Start is made interactable by ShiftSystem only while shown.
-  ShiftSystem.startEntity = world
-    .createTransformEntity(ui.start.root, { parent: contentEntity })
-    .addComponent(StartButton);
+  // Start buttons are made interactable by ShiftSystem only while shown.
+  ShiftSystem.startEntities = ui.starts.map((b, i) =>
+    world
+      .createTransformEntity(b.root, { parent: contentEntity })
+      .addComponent(StartButton, { module: i + 1 }),
+  );
   ShiftSystem.plinths = parts.plinths.map((plinth, index): PlinthView => {
     const advisorId = PLINTH_ADVISORS[index];
     const [stand, body] = plinth.children as Mesh[];

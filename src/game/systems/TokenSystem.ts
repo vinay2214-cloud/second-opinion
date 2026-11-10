@@ -10,7 +10,7 @@ import {
   Vector3,
 } from '@iwsdk/core';
 import type { Zone } from '../../scene/config.js';
-import { buildToken, type TokenParts } from '../../scene/token.js';
+import { buildToken, TIMER_SEGMENTS, type TokenParts } from '../../scene/token.js';
 import { Token, type TokenIntent } from '../components.js';
 import { TraySystem } from './TraySystem.js';
 
@@ -126,6 +126,24 @@ export class TokenSystem extends createSystem({
     return entity;
   }
 
+  /**
+   * Window ring. `fraction` is the share of the full standard window still
+   * left (so a shorter surge window starts as a shorter ring); `urgent` turns
+   * it amber and dashed (shape cue, not colour only). Values come from the runtime.
+   */
+  setWindow(index: number, fraction: number, urgent: boolean): void {
+    const entity = this.byIndex.get(index);
+    const view = entity && this.views.get(entity);
+    if (!view) {
+      return;
+    }
+    const lit = view.removeIn >= 0 ? 0 : Math.ceil(Math.max(0, Math.min(1, fraction)) * TIMER_SEGMENTS);
+    view.parts.timerMaterial.color.setHex(urgent ? 0xffc35c : 0x9ec1ff);
+    for (let k = 0; k < TIMER_SEGMENTS; k++) {
+      view.parts.timer[k].visible = k < lit && (!urgent || k % 2 === 0);
+    }
+  }
+
   /** The last tray move was not accepted: send the token back where it was, silently. */
   revert(index: number): void {
     const entity = this.byIndex.get(index);
@@ -151,6 +169,9 @@ export class TokenSystem extends createSystem({
       this.grab.forceRelease(entity); // onRelease sees removeIn and stays quiet
     }
     entity.setValue(Token, 'state', 'done');
+    for (const arc of view.parts.timer) {
+      arc.visible = false;
+    }
     this.rest(entity, view, finalZone, RETURN_SEC);
   }
 

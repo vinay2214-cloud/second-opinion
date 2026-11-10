@@ -38,7 +38,8 @@ export interface ShiftUiParts {
   speech: TextPanel;
   debrief: TextPanel;
   keep: ButtonParts;
-  start: ButtonParts;
+  /** One start button per module, left to right: Module 1, 2, 3. */
+  starts: ButtonParts[];
   /** labels[0] = "Pause", labels[1] = "Resume". */
   pause: ButtonParts;
 }
@@ -71,16 +72,16 @@ function button(
 }
 
 export function buildShiftUi(): ShiftUiParts {
-  const card = createTextPanel('Vitals Card', 0.34, 0.12);
+  const card = createTextPanel('Vitals Card', 0.34, 0.135);
   // Lies on the near edge, raised 20 degrees so it faces a seated player
   // without hiding the tray labels behind it.
   card.mesh.rotation.x = -Math.PI / 2 + (20 * Math.PI) / 180;
   card.mesh.position.set(-0.035, 0.026, 0.131);
   card.mesh.visible = false;
 
-  const speech = createTextPanel('Speech Panel', 0.56, 0.26);
+  const speech = createTextPanel('Speech Panel', 0.56, 0.3);
   speech.mesh.rotation.x = (-15 * Math.PI) / 180;
-  speech.mesh.position.set(0, 0.205, -0.225);
+  speech.mesh.position.set(0, 0.22, -0.225);
 
   const debrief = createTextPanel('Debrief Panel', 0.56, 0.36);
   debrief.mesh.rotation.x = (-25 * Math.PI) / 180;
@@ -91,14 +92,23 @@ export function buildShiftUi(): ShiftUiParts {
   keep.root.position.set(0.19, 0.005, 0.098);
 
   // Where the card will be; only shown before the first patient.
-  const start = button('Start Button', 0.14, 0.05, ['Start shift'], PALETTE.keepOn);
-  start.root.position.set(-0.035, 0.005, 0.13);
-  start.root.visible = false;
+  // 9 cm wide, 2 cm gaps. labels[0] = unlocked, labels[1] = locked.
+  const starts = [1, 2, 3].map((n, i) => {
+    const parts = button(
+      `Start Module ${n}`,
+      0.09,
+      0.05,
+      [`Module ${n}`, `Module ${n} \u{1F512}`],
+      PALETTE.keepOn,
+    );
+    parts.root.position.set(-0.145 + i * 0.11, 0.005, 0.13);
+    return parts;
+  });
 
   const pause = button('Pause Button', 0.045, 0.045, ['Pause', 'Resume'], PALETTE.button);
   pause.root.position.set(-0.25, 0.005, 0.15);
 
-  return { card, speech, debrief, keep, start, pause };
+  return { card, speech, debrief, keep, starts, pause };
 }
 
 /** Name label tilted toward the player, in front of an advisor plinth. */
@@ -112,6 +122,27 @@ export function labelPlinth(plinth: Object3D, name: string, onDuty: boolean): Me
   label.position.set(0, 0.012, 0.044);
   plinth.add(label);
   return label;
+}
+
+/**
+ * Drift cue: a small 'update installed' tag above an advisor (docs/02 section 7).
+ * Small and quiet by design, still at least 1.2 cm text at its distance.
+ */
+export function buildDriftBadge(plinth: Object3D, text: string): Mesh {
+  // A tag hovering above the advisor, nearly upright: about 1.3 cm capitals at 60 cm.
+  // Wider than the plinth pitch, so it floats above the neighbours (not a target).
+  const badge = createFlatLabel(text, {
+    width: 0.17,
+    height: 0.026,
+    color: '#0b1220',
+    background: '#c9d6ea',
+    bold: false,
+  });
+  badge.rotation.x = -Math.PI / 8;
+  badge.position.set(0, 0.105, 0.012);
+  badge.visible = false;
+  plinth.add(badge);
+  return badge;
 }
 
 export function showButtonLabel(parts: ButtonParts, index: number): void {

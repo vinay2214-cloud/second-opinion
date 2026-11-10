@@ -27,6 +27,7 @@ import {
 } from '../../core/index.js';
 import { PALETTE } from '../../scene/palette.js';
 import {
+  buildDriftBadge,
   labelPlinth,
   type ShiftUiParts,
   showButtonLabel,
@@ -42,6 +43,8 @@ import {
   type TokenIntent,
   VitalsCard,
 } from '../components.js';
+import { loadUnlocked, MODULE_ORDER, recordFinished } from '../progress.js';
+import { TEST_RUN } from '../testRun.js';
 import { PlacementSystem } from './PlacementSystem.js';
 import { TokenSystem } from './TokenSystem.js';
 import { TraySystem } from './TraySystem.js';
@@ -65,7 +68,14 @@ const ZONE_COLOR: Record<Zone, string> = {
   amber: '#ffc35c',
   green: '#5fd39a',
 };
-const MODULES: readonly ModuleId[] = ['module1', 'module2', 'module3'];
+/** Module names from docs/02 section 9 (display only). */
+const MODULE_TITLE: Record<ModuleId, string> = {
+  module1: 'Commit First: Dash only, 6 patients.',
+  module2: 'Read the Tells: Dash and Ledger, 6 second opinions, 10 patients.',
+  module3: 'Pressure and Drift: four advisors, surges, 4 second opinions, 14 patients.',
+};
+/** Stated confidence (a runtime value) shown as a word. */
+const CONFIDENCE_WORD: Record<string, string> = { medium: '', high: 'sure', very_high: 'very sure' };
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 const signed = (n: number): string => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0');
 const clockText = (sec: number): string => {
@@ -80,6 +90,9 @@ export interface PlinthView {
   advisorId: AdvisorId;
   stand: { emissive: { setHex(hex: number): void } };
   body: { color: { setHex(hex: number): void } };
+  /** Set by ShiftSystem. */
+  label?: { material: unknown };
+  badge?: { visible: boolean };
 }
 
 export class ShiftSystem extends createSystem({
@@ -92,7 +105,7 @@ export class ShiftSystem extends createSystem({
   /** Set by bootstrap before registration. */
   static ui: ShiftUiParts;
   static plinths: PlinthView[];
-  static startEntity: Entity;
+  static startEntities: Entity[];
 
   private runtime!: ShiftRuntime;
   private shift!: Shift;
@@ -108,7 +121,11 @@ export class ShiftSystem extends createSystem({
   private refreshIn = 0;
   private expanded = false;
   private keepRequested = false;
-  private startRequested = false;
+  private startRequested = 0;
+  private unlocked = 1;
+  private seed = 'ward-a';
+  private speed = 1;
+  private driftShown = false;
   private pauseRequested = false;
   private verifyRequested: AdvisorId | '' = '';
   private keepEnabled = false;
@@ -140,21 +157,29 @@ export class ShiftSystem extends createSystem({
     this.placement = this.world.getSystem(PlacementSystem) as PlacementSystem;
 
     const params = new URLSearchParams(window.location.search);
-    const seed = params.get('seed') ?? 'ward-a';
-    const asked = params.get('module') as ModuleId | null;
-    const module: ModuleId = asked && MODULES.includes(asked) ? asked : 'module2';
-    this.shift = buildShift({ seed, cases: loadCases(), module });
+    const dev = import.meta.env.DEV;
+    this.seed = (dev && TEST_RUN.seed) || params.get('seed') || 'ward-a';
+    const speed = Number((dev && TEST_RUN.speed) || params.get('speed') || 1);
+    this.speed = Number.isFinite(speed) && speed >= 1 && speed <= 16 ? speed : 1;
+    const asked = ((dev && TEST_RUN.module) || params.get('module')) as ModuleId | null;
+    this.unlocked = loadUnlocked();
+    if (asked && MODULE_ORDER.includes(asked)) {
+      // Testing aid: a named module is playable even if not unlocked yet.
+      this.unlocked = Math.max(this.unlocked, MODULE_ORDER.indexOf(asked) + 1);
+    }
     for (const plinth of ShiftSystem.plinths) {
       const id = plinth.advisorId;
       const name = advisorData.advisors[id].name; // display name only
       this.names[id] = name;
-      const onDuty = this.shift.lineup.includes(id);
-      labelPlinth(plinth.entity.object3D!, name, onDuty);
-      plinth.body.color.setHex(onDuty ? PALETTE.advisor : PALETTE.advisorOff);
+      plinth.label = labelPlinth(plinth.entity.object3D!, name, true);
+      plinth.badge = buildDriftBadge(plinth.entity.object3D!, advisorData.drift.cueText);
     }
-    this.runtime = createShiftRuntime({ shift: this.shift, advisorNames: this.names });
+    ShiftSystem.ui.starts.forEach((b, i) => showButtonLabel(b, i < this.unlocked ? 0 : 1));
+    ShiftSystem.ui.starts.forEach((b, i) =>
+      b.cap.color.setHex(i < this.unlocked ? PALETTE.keepOn : PALETTE.button),
+    );
     console.info(
-      `[shift] built seed=${seed} module=${module} patients=${this.shift.patients.length} tokens=${this.runtime.tokens} lineup=${this.shift.lineup.join(',')}`,
+      `[shift] ready seed=${this.seed} unlocked=${this.unlocked} speed=${this.speed}`,
     );
 
     // Act on release, not on press: changing a target under a pressing hand
@@ -172,8 +197,8 @@ export class ShiftSystem extends createSystem({
       this.queries.plinthPressed.subscribe('disqualify', (entity) => {
         this.verifyRequested = (entity.getValue(AdvisorPlinth, 'advisorId') ?? '') as AdvisorId;
       }),
-      this.queries.startPressed.subscribe('disqualify', () => {
-        this.startRequested = true;
+      this.queries.startPressed.subscribe('disqualify', (entity) => {
+        this.startRequested = entity.getValue(StartButton, 'module') ?? 0;
       }),
       this.queries.pausePressed.subscribe('disqualify', () => {
         this.pauseRequested = true;
@@ -185,12 +210,13 @@ export class ShiftSystem extends createSystem({
   /** Shift time as the runtime sees it: wall time with paused stretches removed. */
   private now(): number {
     const wall = performance.now();
-    return wall - this.pausedTotalMs - (this.paused ? wall - this.pausedSince : 0);
+    return (wall - this.pausedTotalMs - (this.paused ? wall - this.pausedSince : 0)) * this.speed;
   }
 
   update(delta: number, time: number): void {
     this.clock = time;
     if (this.ended) {
+      this.updateAfterEnd();
       return;
     }
     if (!this.started) {
@@ -239,24 +265,97 @@ export class ShiftSystem extends createSystem({
       this.world.visibilityState.peek() !== VisibilityState.NonImmersive &&
       this.placement.isPlaced;
     this.setStartShown(ready);
-    if (ready && this.startRequested) {
-      this.startRequested = false;
-      this.started = true;
-      this.setStartShown(false);
-      console.info('[shift] start');
-      this.handle(this.runtime.start(this.now()));
-      this.refreshIn = 0;
-      return;
-    }
-    this.startRequested = false;
+    const asked = this.startRequested;
+    this.startRequested = 0;
     this.pauseRequested = false;
-    this.ui.speech.set(ready ? 'ready' : 'idle', [
+    if (ready && asked > 0) {
+      console.info(`[shift] start pressed module=${asked} unlocked=${this.unlocked}`);
+      if (asked > this.unlocked) {
+        this.showNotice(`Finish Module ${asked - 1} to unlock Module ${asked}.`);
+      } else {
+        this.begin(MODULE_ORDER[asked - 1]);
+        return;
+      }
+    }
+    const em = TEXT_EM.speech;
+    const lines: PanelLine[] = [
       { text: 'Second Opinion', bold: true, em: TEXT_EM.speechHead },
-      { text: 'Commit your call. Then see if the AI agrees.', em: TEXT_EM.speech },
-      ready
-        ? { text: 'Poke Start shift when you are ready.', em: TEXT_EM.speech, color: '#ffd166' }
-        : { text: 'Place your ward to begin.', em: TEXT_EM.speech, color: '#ffd166' },
-    ]);
+      { text: 'Commit your call. Then see if the AI agrees.', em },
+    ];
+    if (ready) {
+      MODULE_ORDER.forEach((id, i) => {
+        lines.push({
+          text: `Module ${i + 1} \u00B7 ${MODULE_TITLE[id]}${i < this.unlocked ? '' : ' (locked)'}`,
+          em,
+          color: i < this.unlocked ? '#f2f6ff' : '#7d8aa3',
+        });
+      });
+      lines.push({ text: 'Poke a module to start.', em, color: '#ffd166' });
+    } else {
+      lines.push({ text: 'Place your ward to begin.', em, color: '#ffd166' });
+    }
+    const noticeActive = this.notice !== '' && this.clock < this.noticeUntil;
+    if (noticeActive) {
+      lines.push({ text: this.notice, em, bold: true, color: '#ffd166' });
+    }
+    this.ui.speech.set(`pre-${ready}-${noticeActive ? this.notice : ''}`, lines);
+  }
+
+  /** Debrief on screen; the module buttons return so the next shift can start. */
+  private updateAfterEnd(): void {
+    this.setStartShown(true);
+    const asked = this.startRequested;
+    this.startRequested = 0;
+    this.pauseRequested = false;
+    this.verifyRequested = '';
+    this.keepRequested = false;
+    if (asked > 0 && asked <= this.unlocked && this.tokens.heldCount === 0) {
+      this.reset();
+      this.begin(MODULE_ORDER[asked - 1]);
+    }
+  }
+
+  private reset(): void {
+    this.ended = false;
+    this.stage.clear();
+    this.commitZone.clear();
+    this.lead.clear();
+    this.revealAt.clear();
+    this.focus = -1;
+    this.scoreTotal = 0;
+    this.resolvedCount = 0;
+    this.resultAt = -1;
+    this.resultKey = '';
+    this.notice = '';
+    this.driftShown = false;
+    this.paused = false;
+    this.pausedTotalMs = 0;
+    showButtonLabel(this.ui.pause, 0);
+    this.ui.debrief.mesh.visible = false;
+    this.ui.speech.mesh.visible = true;
+    for (const plinth of ShiftSystem.plinths) {
+      if (plinth.badge) {
+        plinth.badge.visible = false;
+      }
+    }
+  }
+
+  private begin(module: ModuleId): void {
+    this.shift = buildShift({ seed: this.seed, cases: loadCases(), module });
+    for (const plinth of ShiftSystem.plinths) {
+      const onDuty = this.shift.lineup.includes(plinth.advisorId);
+      plinth.body.color.setHex(onDuty ? PALETTE.advisor : PALETTE.advisorOff);
+      (plinth.label?.material as { opacity: number }).opacity = onDuty ? 1 : 0.4;
+    }
+    this.runtime = createShiftRuntime({ shift: this.shift, advisorNames: this.names });
+    this.started = true;
+    this.setStartShown(false);
+    console.info(
+      `[shift] start seed=${this.seed} module=${module} patients=${this.shift.patients.length} tokens=${this.runtime.tokens} lineup=${this.shift.lineup.join(',')} drift=${this.shift.drift ? `${this.shift.drift.advisorId}/${this.shift.drift.category}@${this.shift.drift.atIndex}` : 'none'} speed=${this.speed}`,
+    );
+    console.info('[shift] start');
+    this.handle(this.runtime.start(this.now()));
+    this.refreshIn = 0;
   }
 
   private togglePause(): void {
@@ -354,7 +453,10 @@ export class ShiftSystem extends createSystem({
       if (event.type === 'arrive') {
         this.stage.set(event.index, 'arrived');
         this.tokens.spawnToken(event.index);
-        console.info(`[shift] arrive ${event.index}`);
+        const surge = this.runtime.publicView(event.index).surge;
+        console.info(
+          `[shift] arrive ${event.index}${surge ? ' surge' : ''} t=${this.runtime.elapsedSec(this.now()).toFixed(1)}s`,
+        );
       } else if (event.type === 'resolved') {
         this.onResolved(event);
       } else {
@@ -406,13 +508,37 @@ export class ShiftSystem extends createSystem({
   private finish(): void {
     this.ended = true;
     const { score, debrief, tokensLeft } = this.runtime.summary();
+    const before = this.unlocked;
+    this.unlocked = recordFinished(this.shift.module);
     const lines = debriefLines(debrief, score);
+    ShiftSystem.ui.starts.forEach((b, k) => {
+      showButtonLabel(b, k < this.unlocked ? 0 : 1);
+      b.cap.color.setHex(k < this.unlocked ? PALETTE.keepOn : PALETTE.button);
+    });
+    if (this.unlocked > before) {
+      lines.push({
+        text: `Module ${this.unlocked} unlocked.`,
+        em: TEXT_EM.debrief,
+        bold: true,
+        color: '#5fd39a',
+      });
+    }
+    lines.push({
+      text: 'Poke a module button to play another shift.',
+      em: TEXT_EM.debrief,
+      color: '#9ec1ff',
+    });
     this.ui.debrief.set('debrief', lines);
     this.ui.debrief.mesh.visible = true;
     this.ui.speech.mesh.visible = false;
     this.ui.card.mesh.visible = false;
     this.setKeep(false);
     this.highlightPlinths(null, []);
+    for (const plinth of ShiftSystem.plinths) {
+      if (plinth.badge) {
+        plinth.badge.visible = false;
+      }
+    }
     // Logged diff for T07 acceptance: every debrief sentence must be on the panel verbatim.
     const shown = new Set(lines.map((l) => l.text));
     const missing = debriefSentences(debrief).filter((s) => !shown.has(s));
@@ -426,7 +552,7 @@ export class ShiftSystem extends createSystem({
     );
     console.info(`[debrief] ${JSON.stringify(debrief)}`);
     console.info(
-      `[shift] end score=${score.total} outcome=${score.outcome} restraint=${score.restraint} tokensLeft=${tokensLeft} elapsed=${this.runtime.elapsedSec(this.now()).toFixed(1)}s`,
+      `[shift] end module=${this.shift.module} unlocked=${this.unlocked} score=${score.total} outcome=${score.outcome} restraint=${score.restraint} tokensLeft=${tokensLeft} elapsed=${this.runtime.elapsedSec(this.now()).toFixed(1)}s seed=${this.seed}`,
     );
   }
 
@@ -471,6 +597,26 @@ export class ShiftSystem extends createSystem({
     const verified = adviceShown && view?.verified ? view.verified : [];
     this.highlightPlinths(adviceShown && lead ? lead.advisorId : null, verified.map((v) => v.advisorId));
 
+    // Window rings on every waiting token, from the runtime's arrival and window times.
+    const elapsed = this.runtime.elapsedSec(now);
+    for (const index of this.stage.keys()) {
+      const pv = this.runtime.publicView(index);
+      const left = pv.arrivalSec + pv.windowSec - elapsed;
+      this.tokens.setWindow(index, left / shiftConfig.shift.windowSeconds, left <= 8);
+    }
+
+    // Drift cue: a quiet badge, shown when the runtime says so.
+    const cue = this.runtime.driftCue(now);
+    for (const plinth of ShiftSystem.plinths) {
+      if (plinth.badge) {
+        plinth.badge.visible = !!cue && cue.advisorId === plinth.advisorId;
+      }
+    }
+    if (cue && !this.driftShown) {
+      this.driftShown = true;
+      console.info(`[shift] drift cue shown advisor=${cue.advisorId} text="${cue.text}" resolved=${this.resolvedCount}`);
+    }
+
     if (view) {
       const left = Math.max(
         0,
@@ -480,7 +626,7 @@ export class ShiftSystem extends createSystem({
       const em = TEXT_EM.card;
       const lines: PanelLine[] = [
         {
-          text: `Patient ${i + 1} · ${cap(view.case.ageBand)} · ${cap(view.case.category)} · ${left} s left`,
+          text: `${view.surge ? 'SURGE · ' : ''}Patient ${i + 1} · ${cap(view.case.ageBand)} · ${cap(view.case.category)} · ${left} s left`,
           bold: true,
           em,
           color: left <= 8 ? '#ffc35c' : '#9ec1ff',
@@ -503,10 +649,10 @@ export class ShiftSystem extends createSystem({
     const tokensLeft = this.runtime.tokens;
     const hasTokens = this.shift.tokens !== null;
     const pips = hasTokens
-      ? ` · Second opinions ${'●'.repeat(tokensLeft)}${'○'.repeat(Math.max(0, (this.shift.tokens ?? 0) - tokensLeft))} ${tokensLeft}`
+      ? ` · Opinions ${'●'.repeat(tokensLeft)}${'○'.repeat(Math.max(0, (this.shift.tokens ?? 0) - tokensLeft))}`
       : '';
     const hud: PanelLine = {
-      text: `${this.paused ? 'PAUSED · ' : ''}${clockText(remaining)} left · Patient ${Math.min(this.resolvedCount + 1, this.shift.patients.length)} of ${this.shift.patients.length} · Score ${this.scoreTotal}${pips}`,
+      text: `${this.paused ? 'PAUSED · ' : ''}${clockText(remaining)} left · Patient ${Math.min(this.resolvedCount + 1, this.shift.patients.length)}/${this.shift.patients.length} · Score ${this.scoreTotal}${pips}`,
       em: TEXT_EM.speech,
       color: remaining <= 30 ? '#ffc35c' : '#9ec1ff',
     };
@@ -524,19 +670,18 @@ export class ShiftSystem extends createSystem({
       body.push({ text: 'Poke Resume to continue. The clock is stopped.', em });
     } else if (adviceShown && lead) {
       key = `advice-${i}-${verified.length}`;
-      body.push({
-        text: `${this.names[lead.advisorId] ?? lead.advisorId}: ${ZONE_MARK[lead.call]}  “${lead.line}”`,
-        bold: true,
-        em,
-        color: ZONE_COLOR[lead.call],
-      });
+      // One call line per advisor heard; the quote only for the latest speaker.
+      const said = (id: AdvisorId) => {
+        const word = id === lead.advisorId ? CONFIDENCE_WORD[lead.statedConfidence] : '';
+        return `${this.names[id] ?? id}${word ? `, ${word}` : ''}`;
+      };
+      body.push({ text: `${said(lead.advisorId)}: ${ZONE_MARK[lead.call]}`, bold: true, em, color: ZONE_COLOR[lead.call] });
       for (const second of verified) {
-        body.push({
-          text: `${this.names[second.advisorId] ?? second.advisorId}: ${ZONE_MARK[second.call]}  “${second.line}”`,
-          em,
-          color: ZONE_COLOR[second.call],
-        });
+        body.push({ text: `${said(second.advisorId)}: ${ZONE_MARK[second.call]}`, bold: true, em, color: ZONE_COLOR[second.call] });
       }
+      const latest = verified.length > 0 ? verified[verified.length - 1] : lead;
+      const verySure = latest === lead && lead.statedConfidence === 'very_high';
+      body.push({ text: `\u201C${latest.line}\u201D`, em, italic: verySure, bold: verySure });
       const canVerify = this.runtime.availableVerifiers(i).length > 0;
       body.push({
         text: canVerify
@@ -584,16 +729,17 @@ export class ShiftSystem extends createSystem({
       return;
     }
     this.startShown = shown;
-    const entity = ShiftSystem.startEntity;
-    entity.setValue(Visibility, 'isVisible', shown);
-    if (shown) {
-      entity.addComponent(RayInteractable).addComponent(PokeInteractable);
-    } else {
-      if (entity.hasComponent(RayInteractable)) {
-        entity.removeComponent(RayInteractable);
-      }
-      if (entity.hasComponent(PokeInteractable)) {
-        entity.removeComponent(PokeInteractable);
+    for (const entity of ShiftSystem.startEntities) {
+      entity.setValue(Visibility, 'isVisible', shown);
+      if (shown) {
+        entity.addComponent(RayInteractable).addComponent(PokeInteractable);
+      } else {
+        if (entity.hasComponent(RayInteractable)) {
+          entity.removeComponent(RayInteractable);
+        }
+        if (entity.hasComponent(PokeInteractable)) {
+          entity.removeComponent(PokeInteractable);
+        }
       }
     }
   }

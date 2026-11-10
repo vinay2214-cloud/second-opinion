@@ -15,7 +15,12 @@ export interface TokenParts {
   /** Ring at the base: the hover / selected outline. */
   outline: Mesh;
   material: MeshLambertMaterial;
+  /** Window ring: TIMER_SEGMENTS arcs around the base, hidden from the end as time runs out. */
+  timer: Mesh[];
+  timerMaterial: MeshBasicMaterial;
 }
+
+export const TIMER_SEGMENTS = 24;
 
 export function buildToken(index: number): TokenParts {
   const material = new MeshLambertMaterial({
@@ -46,5 +51,26 @@ export function buildToken(index: number): TokenParts {
   outline.visible = false;
   root.add(outline);
 
-  return { root, outline, material };
+  // Window ring: starts at 12 o'clock (far side) and empties clockwise.
+  const timerMaterial = new MeshBasicMaterial({
+    color: 0x9ec1ff,
+    transparent: true,
+    opacity: 0.9,
+    depthWrite: false,
+  });
+  const step = (Math.PI * 2) / TIMER_SEGMENTS;
+  const timer: Mesh[] = [];
+  for (let k = 0; k < TIMER_SEGMENTS; k++) {
+    const arc = new Mesh(
+      new RingGeometry(0.039, 0.045, 2, 1, Math.PI / 2 - (k + 1) * step + 0.008, step - 0.016),
+      timerMaterial,
+    );
+    arc.rotation.x = -Math.PI / 2;
+    arc.position.y = 0.0012;
+    arc.visible = false;
+    root.add(arc);
+    timer.push(arc);
+  }
+
+  return { root, outline, material, timer, timerMaterial };
 }

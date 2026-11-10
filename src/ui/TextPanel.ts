@@ -15,6 +15,7 @@ export interface PanelLine {
   em?: number;
   color?: string;
   bold?: boolean;
+  italic?: boolean;
 }
 
 export interface TextPanel {
@@ -59,24 +60,35 @@ export function createTextPanel(
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     const maxWidth = canvas.width - pad * 2;
-    let y = pad;
-    for (const line of lines) {
-      const px = Math.round((line.em ?? BODY_EM) * PX_PER_M);
-      ctx.font = `${line.bold ? '700' : '500'} ${px}px system-ui, sans-serif`;
-      ctx.fillStyle = line.color ?? '#f2f6ff';
-      let row = '';
-      for (const word of line.text.split(' ')) {
-        const next = row ? `${row} ${word}` : word;
-        if (row && ctx.measureText(next).width > maxWidth) {
-          ctx.fillText(row, pad, y);
-          y += Math.round(px * 1.28);
-          row = word;
-        } else {
-          row = next;
+    // Lay out once to measure; if the text would overflow, shrink everything
+    // to fit and say so in the console (it breaks the text-size rule).
+    let scale = 1;
+    for (let pass = 0; pass < 2; pass++) {
+      let y = pad;
+      for (const line of lines) {
+        const px = Math.round((line.em ?? BODY_EM) * PX_PER_M * scale);
+        ctx.font = `${line.italic ? 'italic ' : ''}${line.bold ? '700' : '500'} ${px}px system-ui, sans-serif`;
+        ctx.fillStyle = line.color ?? '#f2f6ff';
+        let row = '';
+        for (const word of line.text.split(' ')) {
+          const next = row ? `${row} ${word}` : word;
+          if (row && ctx.measureText(next).width > maxWidth) {
+            if (pass === 1) ctx.fillText(row, pad, y);
+            y += Math.round(px * 1.28);
+            row = word;
+          } else {
+            row = next;
+          }
+        }
+        if (pass === 1) ctx.fillText(row, pad, y);
+        y += Math.round(px * 1.34);
+      }
+      if (pass === 0) {
+        if (y > canvas.height - pad) {
+          scale = (canvas.height - pad * 2) / (y - pad);
+          console.warn(`[ui] ${name}: text shrunk to ${Math.round(scale * 100)}% to fit`);
         }
       }
-      ctx.fillText(row, pad, y);
-      y += Math.round(px * 1.34);
     }
     texture.needsUpdate = true;
   }

@@ -28,8 +28,10 @@ export const VitalsCard = createComponent('VitalsCard', {});
 export const AdvisorPlinth = createComponent('AdvisorPlinth', {
   advisorId: { type: Types.String, default: '' },
 });
-/** Start shift button (shown before the first patient). */
-export const StartButton = createComponent('StartButton', {});
+/** Start button for one module (1 to 3), shown before the first patient. */
+export const StartButton = createComponent('StartButton', {
+  module: { type: Types.Int32, default: 1 },
+});
 /** Pause / Resume button on the table edge. */
 export const PauseButton = createComponent('PauseButton', {});
 /** Keep button: confirms the committed call. */
