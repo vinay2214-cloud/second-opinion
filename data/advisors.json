@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "note": "Per-category hidden reliability. NEVER shown to the player. Tune in playtests. Names are working names (no real brands).",
+  "categories": ["cardiac", "breathing", "injury", "children", "infection"],
+  "advisors": {
+    "dash": {
+      "name": "Dash",
+      "style": "Fast pattern-matcher. Strong on common cases, shaky on children.",
+      "reliability": { "cardiac": 0.92, "breathing": 0.90, "injury": 0.88, "children": 0.55, "infection": 0.80 },
+      "errorMode": "adjacent",
+      "statedConfidence": "medium",
+      "lines": ["Pattern match: {call}.", "Seen this before. {call}.", "Quick read: {call}."]
+    },
+    "sage": {
+      "name": "Sage",
+      "style": "Cautious. Rarely misses danger but over-calls, which wastes capacity.",
+      "reliability": { "cardiac": 0.85, "breathing": 0.85, "injury": 0.85, "children": 0.85, "infection": 0.85 },
+      "errorMode": "upgrade",
+      "redFloor": 0.97,
+      "statedConfidence": "medium",
+      "lines": ["Better safe than sorry: {call}.", "I would not take the risk. {call}.", "Cautious call: {call}."]
+    },
+    "ledger": {
+      "name": "Ledger",
+      "style": "Specialist. Brilliant on cardiac cases, blind elsewhere.",
+      "reliability": { "cardiac": 0.96, "breathing": 0.60, "injury": 0.55, "children": 0.50, "infection": 0.58 },
+      "errorMode": "adjacent",
+      "statedConfidence": "high",
+      "lines": ["Specialist read: {call}.", "On my desk, this is {call}.", "Filed under {call}."]
+    },
+    "orator": {
+      "name": "Orator",
+      "style": "Eloquent and confident, but only slightly better than a coin flip. Fluency is not accuracy.",
+      "reliability": { "cardiac": 0.55, "breathing": 0.55, "injury": 0.55, "children": 0.55, "infection": 0.55 },
+      "errorMode": "adjacent",
+      "statedConfidence": "very_high",
+      "eloquent": true,
+      "lines": [
+        "Textbook presentation. The numbers line up perfectly with {call}. I would stake my reputation on {call}.",
+        "This is exactly what {call} looks like. Everything fits. There is no serious doubt here: {call}.",
+        "Consider the whole picture: it points one way only. {call}. I am entirely confident."
+      ]
+    },
+    "echo": {
+      "name": "Echo",
+      "style": "Agrees with whatever you committed. A flatterer. Roadmap unlock.",
+      "mirror": true,
+      "reliability": { "cardiac": 0.5, "breathing": 0.5, "injury": 0.5, "children": 0.5, "infection": 0.5 },
+      "statedConfidence": "high",
+      "lines": ["You are right: {call}.", "Exactly what I would say: {call}.", "Great instincts. {call}."]
+    }
+  },
+  "drift": {
+    "delta": -0.35,
+    "floor": 0.25,
+    "atFraction": 0.6,
+    "eligibleMinReliability": 0.85,
+    "cueText": "update installed"
+  }
+}

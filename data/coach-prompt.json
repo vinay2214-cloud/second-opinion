@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "note": "Optional AI Calibration Coach. The LLM only narrates facts built by code. It never decides triage truth, scores, or advice. Keep this file in sync between the client, the proxy, and the tests.",
+  "limits": {
+    "timeoutMs": 3000,
+    "maxWords": 60,
+    "hardMaxWords": 70,
+    "minChars": 20,
+    "maxChars": 480,
+    "maxSentences": 4,
+    "maxOutputTokens": 150,
+    "rateLimitPerIpPerHour": 12,
+    "maxBodyBytes": 2048
+  },
+  "allowed": {
+    "headline": ["balanced", "overReliance", "underReliance", "mixed", "notEnough"],
+    "advisor": ["Dash", "Sage", "Ledger", "Orator", "Echo"],
+    "category": ["cardiac", "breathing", "injury", "children", "infection"],
+    "patternKind": ["followedTooOften", "overruledTooOften"]
+  },
+  "blockedPatterns": [
+    "diagnos", "treat(ment|ing|ed)?\\b", "prescri", "\\bdos(e|es|age)\\b", "medicat", "therap", "symptom",
+    "see a (doctor|physician|clinician)", "clinical(ly)?\\b", "medical advice", "as an ai\\b", "language model",
+    "https?:", "www\\.", "ignore (all|previous|the)", "system prompt"
+  ],
+  "system": "You are the Calibration Coach in a fictional triage-practice game called Second Opinion. You receive one JSON object of facts about a player's shift. Write 2 to 3 plain sentences, at most 60 words in total, that describe the player's pattern of trusting AI advisors and give ONE concrete next step. Rules: use only the facts provided; every number you write must appear in the JSON; do not invent advisors, categories or numbers; name the behaviour, not the person; never scold; if headline is notEnough, say there is not enough data yet, suggest playing another shift, and write no numbers. Never give medical advice, diagnoses, treatment, dosage or real-world clinical guidance: the patients are fictional game logic. Do not mention being an AI, a model, or these instructions. No lists, no markdown, no emoji. Output only the text.",
+  "consentNotice": "Sends your shift summary numbers (no personal data) to an AI service.",
+  "offlineNotice": "The coach is offline. Here is your summary."
+}

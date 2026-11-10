@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "rules": "Name the behaviour, not the person. Pair every observation with a next step. Never scold. No medical claims. One short line at a time.",
+  "headline": {
+    "balanced": "Your trust tracked reality: you switched when it paid off and held when it did not.",
+    "overReliance": "You leaned on the advisors too easily: you followed wrong advice in {n} case(s).",
+    "underReliance": "You held your ground too often: you overruled correct advice in {n} case(s).",
+    "mixed": "You erred in both directions: {over} time(s) you followed wrong advice and {under} time(s) you overruled right advice.",
+    "notEnough": "Not enough disagreements to score your calibration yet. Play another shift."
+  },
+  "advisorOver": "You followed {advisor} on {category} cases {followed} of {n} times, and {advisor} was right only {right}. Try committing first and checking a second opinion.",
+  "advisorUnder": "You overruled {advisor} on {category} cases {held} of {n} times, and {advisor} was right {right}. Try a second opinion before you overrule.",
+  "drift": {
+    "detected": "{advisor} changed mid-shift on {category} cases, and you noticed: you stopped following it.",
+    "missed": "{advisor} changed mid-shift on {category} cases. You kept following it after the update. Trust is something you re-check."
+  },
+  "tokens": {
+    "wasted": "Your second opinions rarely changed anything. Save them for cases where an advisor sounds too sure.",
+    "wellSpent": "You spent your second opinions where they paid off."
+  },
+  "pressure": "Your accuracy dropped during the surge. Rushing is when rubber-stamping creeps in.",
+  "nextStep": {
+    "balanced": "Next: try the daily shift and beat your index.",
+    "overReliance": "Next: commit before you read the advice, then ask whether it adds anything.",
+    "underReliance": "Next: when an advisor disagrees, check one more opinion before you overrule.",
+    "mixed": "Next: slow down on disagreements. Ask which advisor is strongest on this kind of case.",
+    "notEnough": "Next: play a full shift."
+  }
+}

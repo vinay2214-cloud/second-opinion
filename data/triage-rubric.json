@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "note": "GAME LOGIC ONLY. Simplified and fictional. Not clinical guidance. Do not add real-world medical realism or claims.",
+  "zones": ["green", "amber", "red"],
+  "thresholds": { "amberMin": 3, "redMin": 6 },
+  "difficulty": { "borderlineMaxDistance": 0.5, "mediumMaxDistance": 1.5, "boundaries": [2.5, 5.5] },
+  "limits": {
+    "default": { "pulse": [35, 190], "sbp": [50, 250], "spo2": [78, 100], "temp": [33.5, 41.0] },
+    "child": { "pulse": [40, 190], "sbp": [45, 140], "spo2": [78, 100], "temp": [33.5, 41.0] }
+  },
+  "bands": {
+    "pulse": {
+      "adult": [[0, 40, 3], [41, 50, 1], [51, 90, 0], [91, 110, 1], [111, 130, 2], [131, 300, 3]],
+      "child": [[0, 59, 3], [60, 69, 1], [70, 120, 0], [121, 140, 1], [141, 159, 2], [160, 300, 3]]
+    },
+    "sbp": {
+      "adult": [[0, 90, 3], [91, 100, 2], [101, 110, 1], [111, 219, 0], [220, 400, 3]],
+      "child": [[0, 70, 3], [71, 80, 2], [81, 89, 1], [90, 400, 0]]
+    },
+    "spo2": { "adult": [[0, 91, 3], [92, 93, 2], [94, 95, 1], [96, 100, 0]], "child": [[0, 91, 3], [92, 93, 2], [94, 95, 1], [96, 100, 0]] },
+    "temp": {
+      "adult": [[0, 35.0, 3], [35.1, 36.0, 1], [36.1, 38.0, 0], [38.1, 39.0, 1], [39.1, 50, 2]],
+      "child": [[0, 35.0, 3], [35.1, 36.0, 1], [36.1, 38.0, 0], [38.1, 39.0, 1], [39.1, 50, 2]]
+    }
+  },
+  "flags": {
+    "chest_pressure": { "points": 2, "label": "chest pressure" },
+    "breathing_difficulty": { "points": 2, "label": "trouble breathing" },
+    "confusion": { "points": 2, "label": "confusion or drowsiness" },
+    "bleeding_heavy": { "points": 3, "label": "heavy bleeding" },
+    "severe_pain": { "points": 1, "label": "severe pain" },
+    "fever_rash": { "points": 1, "label": "fever with rash" }
+  }
+}

@@ -1,0 +1,427 @@
+{
+  "version": 3,
+  "note": "Fictional complaint templates. Each lists the zones it may appear in and plausibility rules for its vitals. Rule values: 'normal' (vital must score 0), 'mild' (0 or 1 point), 'any', or {dir:'low'|'high', min, max}. The generator only produces abnormal readings in typical directions (fast pulse, low pressure, low oxygen, high temperature). No real people, brands or facilities.",
+  "plan": {
+    "cardiac": {
+      "green": 3,
+      "amber": 5,
+      "red": 4
+    },
+    "breathing": {
+      "green": 3,
+      "amber": 5,
+      "red": 4
+    },
+    "injury": {
+      "green": 4,
+      "amber": 4,
+      "red": 4
+    },
+    "children": {
+      "green": 4,
+      "amber": 5,
+      "red": 3
+    },
+    "infection": {
+      "green": 4,
+      "amber": 5,
+      "red": 3
+    }
+  },
+  "difficultyWeights": {
+    "1": 0.35,
+    "2": 0.35,
+    "3": 0.3
+  },
+  "zoneSeverityWeights": {
+    "green": [
+      0.7,
+      0.22,
+      0.06,
+      0.02
+    ],
+    "amber": [
+      0.4,
+      0.3,
+      0.2,
+      0.1
+    ],
+    "red": [
+      0.2,
+      0.25,
+      0.25,
+      0.3
+    ]
+  },
+  "categories": {
+    "cardiac": {
+      "ageBands": [
+        "adult",
+        "senior"
+      ],
+      "defaultVitalRules": {
+        "temp": "normal",
+        "spo2": "mild"
+      },
+      "templates": [
+        {
+          "text": "Chest pressure with sweating",
+          "flags": [
+            "chest_pressure"
+          ],
+          "zones": [
+            "amber",
+            "red"
+          ]
+        },
+        {
+          "text": "Crushing chest weight spreading to the arm",
+          "flags": [
+            "chest_pressure"
+          ],
+          "zones": [
+            "red"
+          ]
+        },
+        {
+          "text": "Chest tightness on exertion, eased by rest",
+          "flags": [],
+          "zones": [
+            "green",
+            "amber"
+          ]
+        },
+        {
+          "text": "Racing heartbeat and feeling faint",
+          "flags": [],
+          "zones": [
+            "amber",
+            "red"
+          ],
+          "vitalRules": {
+            "pulse": {
+              "dir": "high",
+              "min": 1,
+              "max": 3
+            }
+          }
+        },
+        {
+          "text": "Sudden dizziness and pale skin",
+          "flags": [],
+          "zones": [
+            "green",
+            "amber",
+            "red"
+          ]
+        },
+        {
+          "text": "Mild flutter in the chest, feels fine now",
+          "flags": [],
+          "zones": [
+            "green"
+          ]
+        }
+      ]
+    },
+    "breathing": {
+      "ageBands": [
+        "adult",
+        "senior"
+      ],
+      "defaultVitalRules": {
+        "temp": "normal"
+      },
+      "templates": [
+        {
+          "text": "Struggling to breathe, cannot finish sentences",
+          "flags": [
+            "breathing_difficulty"
+          ],
+          "zones": [
+            "amber",
+            "red"
+          ],
+          "vitalRules": {
+            "spo2": {
+              "dir": "low",
+              "min": 1,
+              "max": 3
+            }
+          }
+        },
+        {
+          "text": "Wheeze and breathless after climbing stairs",
+          "flags": [
+            "breathing_difficulty"
+          ],
+          "zones": [
+            "green",
+            "amber"
+          ]
+        },
+        {
+          "text": "Dry cough for three days",
+          "flags": [],
+          "zones": [
+            "green",
+            "amber"
+          ],
+          "vitalRules": {
+            "temp": "any"
+          }
+        },
+        {
+          "text": "Lips turning blue, gasping",
+          "flags": [
+            "breathing_difficulty",
+            "confusion"
+          ],
+          "zones": [
+            "red"
+          ],
+          "vitalRules": {
+            "spo2": {
+              "dir": "low",
+              "min": 2,
+              "max": 3
+            }
+          }
+        },
+        {
+          "text": "Short of breath after a long walk, improving",
+          "flags": [],
+          "zones": [
+            "green",
+            "amber"
+          ]
+        }
+      ]
+    },
+    "injury": {
+      "ageBands": [
+        "adult",
+        "senior"
+      ],
+      "defaultVitalRules": {
+        "temp": "normal",
+        "spo2": "normal"
+      },
+      "templates": [
+        {
+          "text": "Deep cut, bleeding through the bandage",
+          "flags": [
+            "bleeding_heavy"
+          ],
+          "zones": [
+            "amber",
+            "red"
+          ]
+        },
+        {
+          "text": "Twisted ankle, can still walk",
+          "flags": [],
+          "zones": [
+            "green",
+            "amber"
+          ]
+        },
+        {
+          "text": "Fell from a ladder, very sore back",
+          "flags": [
+            "severe_pain"
+          ],
+          "zones": [
+            "amber",
+            "red"
+          ]
+        },
+        {
+          "text": "Small graze on the elbow",
+          "flags": [],
+          "zones": [
+            "green"
+          ]
+        },
+        {
+          "text": "Crushed hand, swelling fast",
+          "flags": [
+            "severe_pain"
+          ],
+          "zones": [
+            "amber",
+            "red"
+          ]
+        },
+        {
+          "text": "Bumped head, brief dizziness",
+          "flags": [],
+          "zones": [
+            "green",
+            "amber",
+            "red"
+          ]
+        }
+      ]
+    },
+    "children": {
+      "ageBands": [
+        "child"
+      ],
+      "defaultVitalRules": {
+        "temp": "normal",
+        "spo2": "mild"
+      },
+      "templates": [
+        {
+          "text": "Child with high fever and a spreading rash",
+          "flags": [
+            "fever_rash"
+          ],
+          "zones": [
+            "amber",
+            "red"
+          ],
+          "vitalRules": {
+            "temp": {
+              "dir": "high",
+              "min": 2,
+              "max": 2
+            }
+          }
+        },
+        {
+          "text": "Child fell off a swing, crying but alert",
+          "flags": [],
+          "zones": [
+            "green",
+            "amber"
+          ]
+        },
+        {
+          "text": "Toddler with a runny nose, playing happily",
+          "flags": [],
+          "zones": [
+            "green"
+          ]
+        },
+        {
+          "text": "Child drowsy and hard to wake",
+          "flags": [
+            "confusion"
+          ],
+          "zones": [
+            "red"
+          ],
+          "vitalRules": {
+            "temp": "any"
+          }
+        },
+        {
+          "text": "Child with a barking cough, noisy breathing",
+          "flags": [
+            "breathing_difficulty"
+          ],
+          "zones": [
+            "amber",
+            "red"
+          ],
+          "vitalRules": {
+            "temp": "any",
+            "spo2": "any"
+          }
+        },
+        {
+          "text": "Child with tummy ache since morning",
+          "flags": [],
+          "zones": [
+            "green",
+            "amber"
+          ],
+          "vitalRules": {
+            "temp": "any"
+          }
+        }
+      ]
+    },
+    "infection": {
+      "ageBands": [
+        "adult",
+        "senior"
+      ],
+      "defaultVitalRules": {
+        "spo2": "mild"
+      },
+      "templates": [
+        {
+          "text": "Fever and shaking chills",
+          "flags": [],
+          "zones": [
+            "amber",
+            "red"
+          ],
+          "vitalRules": {
+            "temp": {
+              "dir": "high",
+              "min": 2,
+              "max": 2
+            }
+          }
+        },
+        {
+          "text": "Red, swollen leg, warm to touch",
+          "flags": [],
+          "zones": [
+            "green",
+            "amber",
+            "red"
+          ],
+          "vitalRules": {
+            "temp": "any"
+          }
+        },
+        {
+          "text": "Sore throat with mild fever",
+          "flags": [],
+          "zones": [
+            "green",
+            "amber"
+          ],
+          "vitalRules": {
+            "temp": {
+              "dir": "high",
+              "min": 1,
+              "max": 1
+            }
+          }
+        },
+        {
+          "text": "Confused and very hot after several days of illness",
+          "flags": [
+            "confusion"
+          ],
+          "zones": [
+            "red"
+          ],
+          "vitalRules": {
+            "temp": {
+              "dir": "high",
+              "min": 2,
+              "max": 2
+            }
+          }
+        },
+        {
+          "text": "Ear pain and blocked nose for a week",
+          "flags": [],
+          "zones": [
+            "green"
+          ],
+          "vitalRules": {
+            "temp": "normal"
+          }
+        }
+      ]
+    }
+  }
+}

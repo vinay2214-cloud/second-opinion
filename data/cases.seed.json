@@ -1,0 +1,1143 @@
+[
+  {
+    "id": "c-001",
+    "category": "infection",
+    "ageBand": "adult",
+    "complaint": "Confused and very hot after several days of illness",
+    "flags": [
+      "confusion"
+    ],
+    "vitals": {
+      "pulse": 124,
+      "sbp": 100,
+      "spo2": 95,
+      "temp": 40,
+      "dbp": 62
+    },
+    "score": 9,
+    "truthZone": "red",
+    "difficulty": 1,
+    "whyLine": "Score 9 puts this in Red: fast pulse (124), low pressure (100), low oxygen (95), high temperature (40), confusion or drowsiness."
+  },
+  {
+    "id": "c-002",
+    "category": "cardiac",
+    "ageBand": "senior",
+    "complaint": "Mild flutter in the chest, feels fine now",
+    "flags": [],
+    "vitals": {
+      "pulse": 75,
+      "sbp": 104,
+      "spo2": 95,
+      "temp": 36.4,
+      "dbp": 68
+    },
+    "score": 2,
+    "truthZone": "green",
+    "difficulty": 3,
+    "whyLine": "Score 2 puts this in Green: low pressure (104), low oxygen (95)."
+  },
+  {
+    "id": "c-003",
+    "category": "infection",
+    "ageBand": "senior",
+    "complaint": "Ear pain and blocked nose for a week",
+    "flags": [],
+    "vitals": {
+      "pulse": 69,
+      "sbp": 94,
+      "spo2": 98,
+      "temp": 36.3,
+      "dbp": 57
+    },
+    "score": 2,
+    "truthZone": "green",
+    "difficulty": 3,
+    "whyLine": "Score 2 puts this in Green: low pressure (94)."
+  },
+  {
+    "id": "c-004",
+    "category": "injury",
+    "ageBand": "adult",
+    "complaint": "Fell from a ladder, very sore back",
+    "flags": [
+      "severe_pain"
+    ],
+    "vitals": {
+      "pulse": 152,
+      "sbp": 185,
+      "spo2": 97,
+      "temp": 36.7,
+      "dbp": 111
+    },
+    "score": 4,
+    "truthZone": "amber",
+    "difficulty": 2,
+    "whyLine": "Score 4 puts this in Amber: fast pulse (152), severe pain."
+  },
+  {
+    "id": "c-005",
+    "category": "cardiac",
+    "ageBand": "senior",
+    "complaint": "Racing heartbeat and feeling faint",
+    "flags": [],
+    "vitals": {
+      "pulse": 152,
+      "sbp": 73,
+      "spo2": 94,
+      "temp": 37.3,
+      "dbp": 44
+    },
+    "score": 7,
+    "truthZone": "red",
+    "difficulty": 2,
+    "whyLine": "Score 7 puts this in Red: fast pulse (152), low pressure (73), low oxygen (94)."
+  },
+  {
+    "id": "c-006",
+    "category": "children",
+    "ageBand": "child",
+    "complaint": "Child fell off a swing, crying but alert",
+    "flags": [],
+    "vitals": {
+      "pulse": 98,
+      "sbp": 137,
+      "spo2": 98,
+      "temp": 37.4,
+      "dbp": 91
+    },
+    "score": 0,
+    "truthZone": "green",
+    "difficulty": 1,
+    "whyLine": "Score 0 puts this in Green: all readings normal."
+  },
+  {
+    "id": "c-007",
+    "category": "breathing",
+    "ageBand": "senior",
+    "complaint": "Lips turning blue, gasping",
+    "flags": [
+      "breathing_difficulty",
+      "confusion"
+    ],
+    "vitals": {
+      "pulse": 68,
+      "sbp": 147,
+      "spo2": 93,
+      "temp": 36.1,
+      "dbp": 89
+    },
+    "score": 6,
+    "truthZone": "red",
+    "difficulty": 3,
+    "whyLine": "Score 6 puts this in Red: low oxygen (93), trouble breathing, confusion or drowsiness."
+  },
+  {
+    "id": "c-008",
+    "category": "infection",
+    "ageBand": "adult",
+    "complaint": "Confused and very hot after several days of illness",
+    "flags": [
+      "confusion"
+    ],
+    "vitals": {
+      "pulse": 189,
+      "sbp": 105,
+      "spo2": 100,
+      "temp": 40.3,
+      "dbp": 62
+    },
+    "score": 8,
+    "truthZone": "red",
+    "difficulty": 1,
+    "whyLine": "Score 8 puts this in Red: fast pulse (189), low pressure (105), high temperature (40.3), confusion or drowsiness."
+  },
+  {
+    "id": "c-009",
+    "category": "injury",
+    "ageBand": "senior",
+    "complaint": "Fell from a ladder, very sore back",
+    "flags": [
+      "severe_pain"
+    ],
+    "vitals": {
+      "pulse": 117,
+      "sbp": 71,
+      "spo2": 100,
+      "temp": 37.9,
+      "dbp": 42
+    },
+    "score": 6,
+    "truthZone": "red",
+    "difficulty": 3,
+    "whyLine": "Score 6 puts this in Red: fast pulse (117), low pressure (71), severe pain."
+  },
+  {
+    "id": "c-010",
+    "category": "cardiac",
+    "ageBand": "adult",
+    "complaint": "Crushing chest weight spreading to the arm",
+    "flags": [
+      "chest_pressure"
+    ],
+    "vitals": {
+      "pulse": 87,
+      "sbp": 57,
+      "spo2": 94,
+      "temp": 38,
+      "dbp": 37
+    },
+    "score": 6,
+    "truthZone": "red",
+    "difficulty": 3,
+    "whyLine": "Score 6 puts this in Red: low pressure (57), low oxygen (94), chest pressure."
+  },
+  {
+    "id": "c-011",
+    "category": "infection",
+    "ageBand": "adult",
+    "complaint": "Fever and shaking chills",
+    "flags": [],
+    "vitals": {
+      "pulse": 126,
+      "sbp": 148,
+      "spo2": 95,
+      "temp": 40.7,
+      "dbp": 100
+    },
+    "score": 5,
+    "truthZone": "amber",
+    "difficulty": 3,
+    "whyLine": "Score 5 puts this in Amber: fast pulse (126), low oxygen (95), high temperature (40.7)."
+  },
+  {
+    "id": "c-012",
+    "category": "infection",
+    "ageBand": "adult",
+    "complaint": "Red, swollen leg, warm to touch",
+    "flags": [],
+    "vitals": {
+      "pulse": 117,
+      "sbp": 109,
+      "spo2": 95,
+      "temp": 36.9,
+      "dbp": 67
+    },
+    "score": 4,
+    "truthZone": "amber",
+    "difficulty": 2,
+    "whyLine": "Score 4 puts this in Amber: fast pulse (117), low pressure (109), low oxygen (95)."
+  },
+  {
+    "id": "c-013",
+    "category": "cardiac",
+    "ageBand": "senior",
+    "complaint": "Sudden dizziness and pale skin",
+    "flags": [],
+    "vitals": {
+      "pulse": 184,
+      "sbp": 96,
+      "spo2": 95,
+      "temp": 38,
+      "dbp": 59
+    },
+    "score": 6,
+    "truthZone": "red",
+    "difficulty": 3,
+    "whyLine": "Score 6 puts this in Red: fast pulse (184), low pressure (96), low oxygen (95)."
+  },
+  {
+    "id": "c-014",
+    "category": "cardiac",
+    "ageBand": "senior",
+    "complaint": "Crushing chest weight spreading to the arm",
+    "flags": [
+      "chest_pressure"
+    ],
+    "vitals": {
+      "pulse": 114,
+      "sbp": 91,
+      "spo2": 94,
+      "temp": 37.7,
+      "dbp": 56
+    },
+    "score": 7,
+    "truthZone": "red",
+    "difficulty": 2,
+    "whyLine": "Score 7 puts this in Red: fast pulse (114), low pressure (91), low oxygen (94), chest pressure."
+  },
+  {
+    "id": "c-015",
+    "category": "children",
+    "ageBand": "child",
+    "complaint": "Child with tummy ache since morning",
+    "flags": [],
+    "vitals": {
+      "pulse": 92,
+      "sbp": 101,
+      "spo2": 98,
+      "temp": 36.8,
+      "dbp": 62
+    },
+    "score": 0,
+    "truthZone": "green",
+    "difficulty": 1,
+    "whyLine": "Score 0 puts this in Green: all readings normal."
+  },
+  {
+    "id": "c-016",
+    "category": "infection",
+    "ageBand": "senior",
+    "complaint": "Fever and shaking chills",
+    "flags": [],
+    "vitals": {
+      "pulse": 101,
+      "sbp": 203,
+      "spo2": 95,
+      "temp": 40.9,
+      "dbp": 118
+    },
+    "score": 4,
+    "truthZone": "amber",
+    "difficulty": 2,
+    "whyLine": "Score 4 puts this in Amber: fast pulse (101), low oxygen (95), high temperature (40.9)."
+  },
+  {
+    "id": "c-017",
+    "category": "children",
+    "ageBand": "child",
+    "complaint": "Child with a barking cough, noisy breathing",
+    "flags": [
+      "breathing_difficulty"
+    ],
+    "vitals": {
+      "pulse": 127,
+      "sbp": 84,
+      "spo2": 98,
+      "temp": 38,
+      "dbp": 49
+    },
+    "score": 4,
+    "truthZone": "amber",
+    "difficulty": 2,
+    "whyLine": "Score 4 puts this in Amber: fast pulse (127), low pressure (84), trouble breathing."
+  },
+  {
+    "id": "c-018",
+    "category": "infection",
+    "ageBand": "senior",
+    "complaint": "Sore throat with mild fever",
+    "flags": [],
+    "vitals": {
+      "pulse": 69,
+      "sbp": 205,
+      "spo2": 96,
+      "temp": 38.2,
+      "dbp": 124
+    },
+    "score": 1,
+    "truthZone": "green",
+    "difficulty": 2,
+    "whyLine": "Score 1 puts this in Green: high temperature (38.2)."
+  },
+  {
+    "id": "c-019",
+    "category": "cardiac",
+    "ageBand": "senior",
+    "complaint": "Sudden dizziness and pale skin",
+    "flags": [],
+    "vitals": {
+      "pulse": 139,
+      "sbp": 110,
+      "spo2": 94,
+      "temp": 37.3,
+      "dbp": 66
+    },
+    "score": 5,
+    "truthZone": "amber",
+    "difficulty": 3,
+    "whyLine": "Score 5 puts this in Amber: fast pulse (139), low pressure (110), low oxygen (94)."
+  },
+  {
+    "id": "c-020",
+    "category": "injury",
+    "ageBand": "adult",
+    "complaint": "Bumped head, brief dizziness",
+    "flags": [],
+    "vitals": {
+      "pulse": 69,
+      "sbp": 185,
+      "spo2": 96,
+      "temp": 38,
+      "dbp": 111
+    },
+    "score": 0,
+    "truthZone": "green",
+    "difficulty": 1,
+    "whyLine": "Score 0 puts this in Green: all readings normal."
+  },
+  {
+    "id": "c-021",
+    "category": "children",
+    "ageBand": "child",
+    "complaint": "Toddler with a runny nose, playing happily",
+    "flags": [],
+    "vitals": {
+      "pulse": 87,
+      "sbp": 102,
+      "spo2": 96,
+      "temp": 36.8,
+      "dbp": 66
+    },
+    "score": 0,
+    "truthZone": "green",
+    "difficulty": 1,
+    "whyLine": "Score 0 puts this in Green: all readings normal."
+  },
+  {
+    "id": "c-022",
+    "category": "injury",
+    "ageBand": "senior",
+    "complaint": "Crushed hand, swelling fast",
+    "flags": [
+      "severe_pain"
+    ],
+    "vitals": {
+      "pulse": 187,
+      "sbp": 63,
+      "spo2": 98,
+      "temp": 36.4,
+      "dbp": 42
+    },
+    "score": 7,
+    "truthZone": "red",
+    "difficulty": 2,
+    "whyLine": "Score 7 puts this in Red: fast pulse (187), low pressure (63), severe pain."
+  },
+  {
+    "id": "c-023",
+    "category": "breathing",
+    "ageBand": "adult",
+    "complaint": "Wheeze and breathless after climbing stairs",
+    "flags": [
+      "breathing_difficulty"
+    ],
+    "vitals": {
+      "pulse": 55,
+      "sbp": 110,
+      "spo2": 95,
+      "temp": 37.2,
+      "dbp": 68
+    },
+    "score": 4,
+    "truthZone": "amber",
+    "difficulty": 2,
+    "whyLine": "Score 4 puts this in Amber: low pressure (110), low oxygen (95), trouble breathing."
+  },
+  {
+    "id": "c-024",
+    "category": "breathing",
+    "ageBand": "senior",
+    "complaint": "Lips turning blue, gasping",
+    "flags": [
+      "breathing_difficulty",
+      "confusion"
+    ],
+    "vitals": {
+      "pulse": 85,
+      "sbp": 107,
+      "spo2": 93,
+      "temp": 37.6,
+      "dbp": 70
+    },
+    "score": 7,
+    "truthZone": "red",
+    "difficulty": 2,
+    "whyLine": "Score 7 puts this in Red: low pressure (107), low oxygen (93), trouble breathing, confusion or drowsiness."
+  },
+  {
+    "id": "c-025",
+    "category": "breathing",
+    "ageBand": "adult",
+    "complaint": "Struggling to breathe, cannot finish sentences",
+    "flags": [
+      "breathing_difficulty"
+    ],
+    "vitals": {
+      "pulse": 64,
+      "sbp": 107,
+      "spo2": 95,
+      "temp": 37.3,
+      "dbp": 71
+    },
+    "score": 4,
+    "truthZone": "amber",
+    "difficulty": 2,
+    "whyLine": "Score 4 puts this in Amber: low pressure (107), low oxygen (95), trouble breathing."
+  },
+  {
+    "id": "c-026",
+    "category": "breathing",
+    "ageBand": "senior",
+    "complaint": "Struggling to breathe, cannot finish sentences",
+    "flags": [
+      "breathing_difficulty"
+    ],
+    "vitals": {
+      "pulse": 110,
+      "sbp": 107,
+      "spo2": 95,
+      "temp": 36.8,
+      "dbp": 68
+    },
+    "score": 5,
+    "truthZone": "amber",
+    "difficulty": 3,
+    "whyLine": "Score 5 puts this in Amber: fast pulse (110), low pressure (107), low oxygen (95), trouble breathing."
+  },
+  {
+    "id": "c-027",
+    "category": "children",
+    "ageBand": "child",
+    "complaint": "Child with a barking cough, noisy breathing",
+    "flags": [
+      "breathing_difficulty"
+    ],
+    "vitals": {
+      "pulse": 85,
+      "sbp": 105,
+      "spo2": 97,
+      "temp": 40.2,
+      "dbp": 65
+    },
+    "score": 4,
+    "truthZone": "amber",
+    "difficulty": 2,
+    "whyLine": "Score 4 puts this in Amber: high temperature (40.2), trouble breathing."
+  },
+  {
+    "id": "c-028",
+    "category": "infection",
+    "ageBand": "adult",
+    "complaint": "Red, swollen leg, warm to touch",
+    "flags": [],
+    "vitals": {
+      "pulse": 52,
+      "sbp": 131,
+      "spo2": 96,
+      "temp": 36.7,
+      "dbp": 81
+    },
+    "score": 0,
+    "truthZone": "green",
+    "difficulty": 1,
+    "whyLine": "Score 0 puts this in Green: all readings normal."
+  },
+  {
+    "id": "c-029",
+    "category": "injury",
+    "ageBand": "senior",
+    "complaint": "Twisted ankle, can still walk",
+    "flags": [],
+    "vitals": {
+      "pulse": 101,
+      "sbp": 75,
+      "spo2": 96,
+      "temp": 37.4,
+      "dbp": 50
+    },
+    "score": 4,
+    "truthZone": "amber",
+    "difficulty": 2,
+    "whyLine": "Score 4 puts this in Amber: fast pulse (101), low pressure (75)."
+  },
+  {
+    "id": "c-030",
+    "category": "breathing",
+    "ageBand": "senior",
+    "complaint": "Dry cough for three days",
+    "flags": [],
+    "vitals": {
+      "pulse": 123,
+      "sbp": 99,
+      "spo2": 94,
+      "temp": 37.1,
+      "dbp": 63
+    },
+    "score": 5,
+    "truthZone": "amber",
+    "difficulty": 3,
+    "whyLine": "Score 5 puts this in Amber: fast pulse (123), low pressure (99), low oxygen (94)."
+  },
+  {
+    "id": "c-031",
+    "category": "cardiac",
+    "ageBand": "adult",
+    "complaint": "Racing heartbeat and feeling faint",
+    "flags": [],
+    "vitals": {
+      "pulse": 120,
+      "sbp": 110,
+      "spo2": 100,
+      "temp": 36.9,
+      "dbp": 66
+    },
+    "score": 3,
+    "truthZone": "amber",
+    "difficulty": 3,
+    "whyLine": "Score 3 puts this in Amber: fast pulse (120), low pressure (110)."
+  },
+  {
+    "id": "c-032",
+    "category": "injury",
+    "ageBand": "senior",
+    "complaint": "Bumped head, brief dizziness",
+    "flags": [],
+    "vitals": {
+      "pulse": 115,
+      "sbp": 160,
+      "spo2": 96,
+      "temp": 37.5,
+      "dbp": 98
+    },
+    "score": 2,
+    "truthZone": "green",
+    "difficulty": 3,
+    "whyLine": "Score 2 puts this in Green: fast pulse (115)."
+  },
+  {
+    "id": "c-033",
+    "category": "children",
+    "ageBand": "child",
+    "complaint": "Child with high fever and a spreading rash",
+    "flags": [
+      "fever_rash"
+    ],
+    "vitals": {
+      "pulse": 84,
+      "sbp": 117,
+      "spo2": 94,
+      "temp": 40.2,
+      "dbp": 71
+    },
+    "score": 4,
+    "truthZone": "amber",
+    "difficulty": 2,
+    "whyLine": "Score 4 puts this in Amber: low oxygen (94), high temperature (40.2), fever with rash."
+  },
+  {
+    "id": "c-034",
+    "category": "infection",
+    "ageBand": "adult",
+    "complaint": "Confused and very hot after several days of illness",
+    "flags": [
+      "confusion"
+    ],
+    "vitals": {
+      "pulse": 139,
+      "sbp": 100,
+      "spo2": 97,
+      "temp": 40.4,
+      "dbp": 60
+    },
+    "score": 9,
+    "truthZone": "red",
+    "difficulty": 1,
+    "whyLine": "Score 9 puts this in Red: fast pulse (139), low pressure (100), high temperature (40.4), confusion or drowsiness."
+  },
+  {
+    "id": "c-035",
+    "category": "breathing",
+    "ageBand": "senior",
+    "complaint": "Short of breath after a long walk, improving",
+    "flags": [],
+    "vitals": {
+      "pulse": 106,
+      "sbp": 104,
+      "spo2": 92,
+      "temp": 37,
+      "dbp": 64
+    },
+    "score": 4,
+    "truthZone": "amber",
+    "difficulty": 2,
+    "whyLine": "Score 4 puts this in Amber: fast pulse (106), low pressure (104), low oxygen (92)."
+  },
+  {
+    "id": "c-036",
+    "category": "children",
+    "ageBand": "child",
+    "complaint": "Child with tummy ache since morning",
+    "flags": [],
+    "vitals": {
+      "pulse": 140,
+      "sbp": 84,
+      "spo2": 94,
+      "temp": 38.6,
+      "dbp": 53
+    },
+    "score": 4,
+    "truthZone": "amber",
+    "difficulty": 2,
+    "whyLine": "Score 4 puts this in Amber: fast pulse (140), low pressure (84), low oxygen (94), high temperature (38.6)."
+  },
+  {
+    "id": "c-037",
+    "category": "injury",
+    "ageBand": "adult",
+    "complaint": "Crushed hand, swelling fast",
+    "flags": [
+      "severe_pain"
+    ],
+    "vitals": {
+      "pulse": 86,
+      "sbp": 99,
+      "spo2": 97,
+      "temp": 37.3,
+      "dbp": 65
+    },
+    "score": 3,
+    "truthZone": "amber",
+    "difficulty": 3,
+    "whyLine": "Score 3 puts this in Amber: low pressure (99), severe pain."
+  },
+  {
+    "id": "c-038",
+    "category": "injury",
+    "ageBand": "senior",
+    "complaint": "Fell from a ladder, very sore back",
+    "flags": [
+      "severe_pain"
+    ],
+    "vitals": {
+      "pulse": 169,
+      "sbp": 67,
+      "spo2": 100,
+      "temp": 37.6,
+      "dbp": 45
+    },
+    "score": 7,
+    "truthZone": "red",
+    "difficulty": 2,
+    "whyLine": "Score 7 puts this in Red: fast pulse (169), low pressure (67), severe pain."
+  },
+  {
+    "id": "c-039",
+    "category": "breathing",
+    "ageBand": "adult",
+    "complaint": "Wheeze and breathless after climbing stairs",
+    "flags": [
+      "breathing_difficulty"
+    ],
+    "vitals": {
+      "pulse": 63,
+      "sbp": 134,
+      "spo2": 96,
+      "temp": 36.3,
+      "dbp": 86
+    },
+    "score": 2,
+    "truthZone": "green",
+    "difficulty": 3,
+    "whyLine": "Score 2 puts this in Green: trouble breathing."
+  },
+  {
+    "id": "c-040",
+    "category": "injury",
+    "ageBand": "senior",
+    "complaint": "Deep cut, bleeding through the bandage",
+    "flags": [
+      "bleeding_heavy"
+    ],
+    "vitals": {
+      "pulse": 96,
+      "sbp": 146,
+      "spo2": 97,
+      "temp": 37.7,
+      "dbp": 94
+    },
+    "score": 4,
+    "truthZone": "amber",
+    "difficulty": 2,
+    "whyLine": "Score 4 puts this in Amber: fast pulse (96), heavy bleeding."
+  },
+  {
+    "id": "c-041",
+    "category": "children",
+    "ageBand": "child",
+    "complaint": "Child drowsy and hard to wake",
+    "flags": [
+      "confusion"
+    ],
+    "vitals": {
+      "pulse": 126,
+      "sbp": 54,
+      "spo2": 95,
+      "temp": 37.4,
+      "dbp": 32
+    },
+    "score": 7,
+    "truthZone": "red",
+    "difficulty": 2,
+    "whyLine": "Score 7 puts this in Red: fast pulse (126), low pressure (54), low oxygen (95), confusion or drowsiness."
+  },
+  {
+    "id": "c-042",
+    "category": "children",
+    "ageBand": "child",
+    "complaint": "Child fell off a swing, crying but alert",
+    "flags": [],
+    "vitals": {
+      "pulse": 87,
+      "sbp": 116,
+      "spo2": 95,
+      "temp": 37.1,
+      "dbp": 68
+    },
+    "score": 1,
+    "truthZone": "green",
+    "difficulty": 2,
+    "whyLine": "Score 1 puts this in Green: low oxygen (95)."
+  },
+  {
+    "id": "c-043",
+    "category": "injury",
+    "ageBand": "senior",
+    "complaint": "Deep cut, bleeding through the bandage",
+    "flags": [
+      "bleeding_heavy"
+    ],
+    "vitals": {
+      "pulse": 72,
+      "sbp": 78,
+      "spo2": 100,
+      "temp": 36.9,
+      "dbp": 48
+    },
+    "score": 6,
+    "truthZone": "red",
+    "difficulty": 3,
+    "whyLine": "Score 6 puts this in Red: low pressure (78), heavy bleeding."
+  },
+  {
+    "id": "c-044",
+    "category": "infection",
+    "ageBand": "adult",
+    "complaint": "Fever and shaking chills",
+    "flags": [],
+    "vitals": {
+      "pulse": 73,
+      "sbp": 121,
+      "spo2": 95,
+      "temp": 40.3,
+      "dbp": 72
+    },
+    "score": 3,
+    "truthZone": "amber",
+    "difficulty": 3,
+    "whyLine": "Score 3 puts this in Amber: low oxygen (95), high temperature (40.3)."
+  },
+  {
+    "id": "c-045",
+    "category": "infection",
+    "ageBand": "senior",
+    "complaint": "Ear pain and blocked nose for a week",
+    "flags": [],
+    "vitals": {
+      "pulse": 126,
+      "sbp": 125,
+      "spo2": 100,
+      "temp": 36.7,
+      "dbp": 82
+    },
+    "score": 2,
+    "truthZone": "green",
+    "difficulty": 3,
+    "whyLine": "Score 2 puts this in Green: fast pulse (126)."
+  },
+  {
+    "id": "c-046",
+    "category": "breathing",
+    "ageBand": "senior",
+    "complaint": "Struggling to breathe, cannot finish sentences",
+    "flags": [
+      "breathing_difficulty"
+    ],
+    "vitals": {
+      "pulse": 52,
+      "sbp": 91,
+      "spo2": 82,
+      "temp": 37.1,
+      "dbp": 53
+    },
+    "score": 7,
+    "truthZone": "red",
+    "difficulty": 2,
+    "whyLine": "Score 7 puts this in Red: low pressure (91), low oxygen (82), trouble breathing."
+  },
+  {
+    "id": "c-047",
+    "category": "injury",
+    "ageBand": "adult",
+    "complaint": "Small graze on the elbow",
+    "flags": [],
+    "vitals": {
+      "pulse": 86,
+      "sbp": 189,
+      "spo2": 99,
+      "temp": 37.5,
+      "dbp": 126
+    },
+    "score": 0,
+    "truthZone": "green",
+    "difficulty": 1,
+    "whyLine": "Score 0 puts this in Green: all readings normal."
+  },
+  {
+    "id": "c-048",
+    "category": "cardiac",
+    "ageBand": "senior",
+    "complaint": "Sudden dizziness and pale skin",
+    "flags": [],
+    "vitals": {
+      "pulse": 64,
+      "sbp": 97,
+      "spo2": 96,
+      "temp": 37,
+      "dbp": 60
+    },
+    "score": 2,
+    "truthZone": "green",
+    "difficulty": 3,
+    "whyLine": "Score 2 puts this in Green: low pressure (97)."
+  },
+  {
+    "id": "c-049",
+    "category": "cardiac",
+    "ageBand": "adult",
+    "complaint": "Chest pressure with sweating",
+    "flags": [
+      "chest_pressure"
+    ],
+    "vitals": {
+      "pulse": 107,
+      "sbp": 183,
+      "spo2": 95,
+      "temp": 37.3,
+      "dbp": 121
+    },
+    "score": 4,
+    "truthZone": "amber",
+    "difficulty": 2,
+    "whyLine": "Score 4 puts this in Amber: fast pulse (107), low oxygen (95), chest pressure."
+  },
+  {
+    "id": "c-050",
+    "category": "cardiac",
+    "ageBand": "senior",
+    "complaint": "Chest pressure with sweating",
+    "flags": [
+      "chest_pressure"
+    ],
+    "vitals": {
+      "pulse": 100,
+      "sbp": 140,
+      "spo2": 94,
+      "temp": 36.5,
+      "dbp": 92
+    },
+    "score": 4,
+    "truthZone": "amber",
+    "difficulty": 2,
+    "whyLine": "Score 4 puts this in Amber: fast pulse (100), low oxygen (94), chest pressure."
+  },
+  {
+    "id": "c-051",
+    "category": "infection",
+    "ageBand": "senior",
+    "complaint": "Sore throat with mild fever",
+    "flags": [],
+    "vitals": {
+      "pulse": 84,
+      "sbp": 92,
+      "spo2": 94,
+      "temp": 38.2,
+      "dbp": 62
+    },
+    "score": 4,
+    "truthZone": "amber",
+    "difficulty": 2,
+    "whyLine": "Score 4 puts this in Amber: low pressure (92), low oxygen (94), high temperature (38.2)."
+  },
+  {
+    "id": "c-052",
+    "category": "breathing",
+    "ageBand": "senior",
+    "complaint": "Lips turning blue, gasping",
+    "flags": [
+      "breathing_difficulty",
+      "confusion"
+    ],
+    "vitals": {
+      "pulse": 77,
+      "sbp": 202,
+      "spo2": 92,
+      "temp": 37,
+      "dbp": 137
+    },
+    "score": 6,
+    "truthZone": "red",
+    "difficulty": 3,
+    "whyLine": "Score 6 puts this in Red: low oxygen (92), trouble breathing, confusion or drowsiness."
+  },
+  {
+    "id": "c-053",
+    "category": "children",
+    "ageBand": "child",
+    "complaint": "Child drowsy and hard to wake",
+    "flags": [
+      "confusion"
+    ],
+    "vitals": {
+      "pulse": 180,
+      "sbp": 55,
+      "spo2": 94,
+      "temp": 37.4,
+      "dbp": 32
+    },
+    "score": 9,
+    "truthZone": "red",
+    "difficulty": 1,
+    "whyLine": "Score 9 puts this in Red: fast pulse (180), low pressure (55), low oxygen (94), confusion or drowsiness."
+  },
+  {
+    "id": "c-054",
+    "category": "breathing",
+    "ageBand": "adult",
+    "complaint": "Dry cough for three days",
+    "flags": [],
+    "vitals": {
+      "pulse": 67,
+      "sbp": 109,
+      "spo2": 99,
+      "temp": 37,
+      "dbp": 71
+    },
+    "score": 1,
+    "truthZone": "green",
+    "difficulty": 2,
+    "whyLine": "Score 1 puts this in Green: low pressure (109)."
+  },
+  {
+    "id": "c-055",
+    "category": "children",
+    "ageBand": "child",
+    "complaint": "Child with high fever and a spreading rash",
+    "flags": [
+      "fever_rash"
+    ],
+    "vitals": {
+      "pulse": 102,
+      "sbp": 99,
+      "spo2": 94,
+      "temp": 39.5,
+      "dbp": 62
+    },
+    "score": 4,
+    "truthZone": "amber",
+    "difficulty": 2,
+    "whyLine": "Score 4 puts this in Amber: low oxygen (94), high temperature (39.5), fever with rash."
+  },
+  {
+    "id": "c-056",
+    "category": "injury",
+    "ageBand": "adult",
+    "complaint": "Twisted ankle, can still walk",
+    "flags": [],
+    "vitals": {
+      "pulse": 56,
+      "sbp": 132,
+      "spo2": 96,
+      "temp": 36.4,
+      "dbp": 85
+    },
+    "score": 0,
+    "truthZone": "green",
+    "difficulty": 1,
+    "whyLine": "Score 0 puts this in Green: all readings normal."
+  },
+  {
+    "id": "c-057",
+    "category": "children",
+    "ageBand": "child",
+    "complaint": "Child drowsy and hard to wake",
+    "flags": [
+      "confusion"
+    ],
+    "vitals": {
+      "pulse": 104,
+      "sbp": 85,
+      "spo2": 94,
+      "temp": 40.7,
+      "dbp": 55
+    },
+    "score": 6,
+    "truthZone": "red",
+    "difficulty": 3,
+    "whyLine": "Score 6 puts this in Red: low pressure (85), low oxygen (94), high temperature (40.7), confusion or drowsiness."
+  },
+  {
+    "id": "c-058",
+    "category": "cardiac",
+    "ageBand": "senior",
+    "complaint": "Chest tightness on exertion, eased by rest",
+    "flags": [],
+    "vitals": {
+      "pulse": 70,
+      "sbp": 148,
+      "spo2": 97,
+      "temp": 36.2,
+      "dbp": 98
+    },
+    "score": 0,
+    "truthZone": "green",
+    "difficulty": 1,
+    "whyLine": "Score 0 puts this in Green: all readings normal."
+  },
+  {
+    "id": "c-059",
+    "category": "breathing",
+    "ageBand": "senior",
+    "complaint": "Short of breath after a long walk, improving",
+    "flags": [],
+    "vitals": {
+      "pulse": 77,
+      "sbp": 144,
+      "spo2": 94,
+      "temp": 37.5,
+      "dbp": 92
+    },
+    "score": 1,
+    "truthZone": "green",
+    "difficulty": 2,
+    "whyLine": "Score 1 puts this in Green: low oxygen (94)."
+  },
+  {
+    "id": "c-060",
+    "category": "cardiac",
+    "ageBand": "senior",
+    "complaint": "Chest tightness on exertion, eased by rest",
+    "flags": [],
+    "vitals": {
+      "pulse": 96,
+      "sbp": 98,
+      "spo2": 99,
+      "temp": 37.1,
+      "dbp": 62
+    },
+    "score": 3,
+    "truthZone": "amber",
+    "difficulty": 3,
+    "whyLine": "Score 3 puts this in Amber: fast pulse (96), low pressure (98)."
+  }
+]

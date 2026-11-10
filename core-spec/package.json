@@ -1,0 +1,13 @@
+{
+  "name": "second-opinion-core-spec",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Executable specification of the Second Opinion game core. Port to TypeScript inside the IWSDK project and keep these tests as golden tests.",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test",
+    "gen": "node tools/generate-cases.js",
+    "validate": "node tools/validate-cases.js"
+  }
+}

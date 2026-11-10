@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "second-opinion/case.schema.json",
+  "title": "Case",
+  "description": "One fictional patient case. truthZone is computed from the rubric in data/triage-rubric.json, never written by hand or by an LLM.",
+  "type": "object",
+  "required": ["id", "category", "ageBand", "complaint", "flags", "vitals", "score", "truthZone", "difficulty", "whyLine"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^c-\\d{3}$" },
+    "category": { "enum": ["cardiac", "breathing", "injury", "children", "infection"] },
+    "ageBand": { "enum": ["adult", "senior", "child"] },
+    "complaint": { "type": "string", "maxLength": 80, "pattern": "^[A-Za-z0-9 ,.'()/-]+$" },
+    "flags": { "type": "array", "items": { "enum": ["chest_pressure", "breathing_difficulty", "confusion", "bleeding_heavy", "severe_pain", "fever_rash"] } },
+    "vitals": {
+      "type": "object",
+      "required": ["pulse", "sbp", "dbp", "spo2", "temp"],
+      "additionalProperties": false,
+      "properties": {
+        "pulse": { "type": "integer", "minimum": 30, "maximum": 220 },
+        "sbp": { "type": "integer", "minimum": 40, "maximum": 260 },
+        "dbp": { "type": "integer", "minimum": 20, "maximum": 160 },
+        "spo2": { "type": "integer", "minimum": 70, "maximum": 100 },
+        "temp": { "type": "number", "minimum": 33, "maximum": 42 }
+      }
+    },
+    "score": { "type": "integer", "minimum": 0 },
+    "truthZone": { "enum": ["green", "amber", "red"] },
+    "difficulty": { "enum": [1, 2, 3] },
+    "whyLine": { "type": "string", "maxLength": 200 }
+  }
+}

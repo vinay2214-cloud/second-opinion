@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "note": "All values are starting points. Tune in playtests; keep the shift near 8 minutes.",
+  "shift": {
+    "patients": 14,
+    "hardCapSeconds": 480,
+    "firstArrivalSeconds": 2,
+    "arrivalGapSeconds": [28, 38],
+    "surgeIndices": [5, 10],
+    "surgeGapSeconds": 4,
+    "windowSeconds": 50,
+    "surgeWindowSeconds": 38,
+    "zoneQuota": { "green": 4, "amber": 6, "red": 4 },
+    "minCategories": 4,
+    "rampPatients": 3
+  },
+  "verify": {
+    "tokensPerShift": 4,
+    "clockCostSeconds": 3,
+    "unspentTokenBonus": 1
+  },
+  "scoring": {
+    "correct": 10,
+    "oneOff": -5,
+    "twoOff": -15,
+    "missedWindowPenalty": -3,
+    "speedBonus": [[8000, 3], [15000, 2], [25000, 1]]
+  },
+  "calibration": {
+    "minDisagreementsForIndex": 4,
+    "followWindowAfterDrift": 4
+  },
+  "lineups": {
+    "module1": ["dash"],
+    "module2": ["dash", "ledger"],
+    "module3": ["dash", "sage", "ledger", "orator"]
+  },
+  "modules": {
+    "module1": { "driftEnabled": false, "tokens": null, "patients": 6, "surgeIndices": [] },
+    "module2": { "driftEnabled": false, "tokens": 6, "patients": 10, "surgeIndices": [] },
+    "module3": { "driftEnabled": true, "tokens": 4, "patients": 14, "surgeIndices": [5, 10] }
+  }
+}
