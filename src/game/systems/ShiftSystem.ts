@@ -1,18 +1,22 @@
 // Adapter between the pure shift runtime (src/core) and the table.
-// It forwards input (tray releases, Keep, advisor pokes, Start, Pause, card
-// poke) to the runtime and draws what the runtime returns. It never computes
-// a score, an advisor call or a reliance label. Advice is drawn only after
-// commit() succeeded and the 0.6 s hold passed, and never while an
-// uncommitted token is in a hand.
+// It forwards input (tray releases, Keep, advisor pokes, module buttons,
+// Pause, settings, card poke) to the runtime and draws what the runtime
+// returns. It never computes a score, an advisor call or a reliance label.
+// Advice is drawn only after commit() succeeded and the 0.6 s hold passed,
+// and never while an uncommitted token is in a hand.
 import {
   createSystem,
   type Entity,
   PokeInteractable,
   Pressed,
   RayInteractable,
+  Vector3,
   Visibility,
   VisibilityState,
 } from '@iwsdk/core';
+import { access, type ToggleKey } from '../../access/access.js';
+import type { GhostHand } from '../../access/ghostHand.js';
+import { Tutorial } from '../../access/Tutorial.js';
 import { advisorData, loadCases, shiftConfig } from '../../core/data.js';
 import {
   type AdvisorId,
@@ -25,25 +29,31 @@ import {
   type ShiftRuntime,
   type Zone,
 } from '../../core/index.js';
+import { recordShift } from '../../persist/history.js';
+import { ZONES } from '../../scene/config.js';
 import { PALETTE } from '../../scene/palette.js';
 import {
   buildDriftBadge,
   labelPlinth,
+  scalePanels,
   type ShiftUiParts,
   showButtonLabel,
   TEXT_EM,
 } from '../../scene/shiftUi.js';
+import type { WardParts } from '../../scene/ward.js';
 import { debriefLines, debriefSentences } from '../../ui/debriefText.js';
 import type { PanelLine } from '../../ui/TextPanel.js';
 import {
   AdvisorPlinth,
   KeepButton,
   PauseButton,
+  SettingsButton,
+  SettingToggle,
   StartButton,
   type TokenIntent,
   VitalsCard,
 } from '../components.js';
-import { loadUnlocked, MODULE_ORDER, recordFinished } from '../progress.js';
+import { localDate } from '../localDate.js';
 import { TEST_RUN } from '../testRun.js';
 import { PlacementSystem } from './PlacementSystem.js';
 import { TokenSystem } from './TokenSystem.js';
@@ -56,6 +66,9 @@ const RESULT_MIN_SEC = 8;
 const TOKEN_LEAVE_SEC = 2.5;
 const REFRESH_SEC = 0.25;
 const NOTICE_SEC = 3;
+/** No hand seen for this long freezes the shift (docs/04 section 5). */
+const TRACKING_LOST_SEC = 0.8;
+const TRACKING_CHECK_SEC = 0.2;
 
 /** Shape plus word, never colour alone. */
 const ZONE_MARK: Record<Zone, string> = {
@@ -68,14 +81,16 @@ const ZONE_COLOR: Record<Zone, string> = {
   amber: '#ffc35c',
   green: '#5fd39a',
 };
+const MODULE_ORDER: readonly ModuleId[] = ['module1', 'module2', 'module3'];
 /** Module names from docs/02 section 9 (display only). */
-const MODULE_TITLE: Record<ModuleId, string> = {
-  module1: 'Commit First: Dash only, 6 patients.',
-  module2: 'Read the Tells: Dash and Ledger, 6 second opinions, 10 patients.',
-  module3: 'Pressure and Drift: four advisors, surges, 4 second opinions, 14 patients.',
+const MODULE_NAME: Record<ModuleId, string> = {
+  module1: 'Commit First',
+  module2: 'Read the Tells',
+  module3: 'Pressure and Drift',
 };
 /** Stated confidence (a runtime value) shown as a word. */
 const CONFIDENCE_WORD: Record<string, string> = { medium: '', high: 'sure', very_high: 'very sure' };
+const ACCENT = '#ffd166';
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 const signed = (n: number): string => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0');
 const clockText = (sec: number): string => {
@@ -84,6 +99,7 @@ const clockText = (sec: number): string => {
 };
 
 type Stage = 'arrived' | 'committed';
+type FreezeReason = 'pause' | 'tracking' | 'settings' | 'tutorial';
 
 export interface PlinthView {
   entity: Entity;
@@ -101,11 +117,17 @@ export class ShiftSystem extends createSystem({
   plinthPressed: { required: [AdvisorPlinth, Pressed] },
   startPressed: { required: [StartButton, Pressed] },
   pausePressed: { required: [PauseButton, Pressed] },
+  settingsPressed: { required: [SettingsButton, Pressed] },
+  togglePressed: { required: [SettingToggle, Pressed] },
 }) {
   /** Set by bootstrap before registration. */
   static ui: ShiftUiParts;
+  static ward: WardParts;
+  static ghost: GhostHand;
   static plinths: PlinthView[];
   static startEntities: Entity[];
+  static toggleEntities: Entity[];
+  static cardEntity: Entity;
 
   private runtime!: ShiftRuntime;
   private shift!: Shift;
@@ -113,26 +135,42 @@ export class ShiftSystem extends createSystem({
   private trays!: TraySystem;
   private placement!: PlacementSystem;
   private ui!: ShiftUiParts;
+  private tutorial!: Tutorial;
 
   private started = false;
   private ended = false;
-  private startShown = false;
   private clock = 0;
   private refreshIn = 0;
   private expanded = false;
   private keepRequested = false;
   private startRequested = 0;
-  private unlocked = 1;
+  private pauseRequested = false;
+  private settingsRequested = false;
+  private toggleRequested: ToggleKey | '' = '';
+  private verifyRequested: AdvisorId | '' = '';
+  private keepEnabled = false;
+  private adviceVisible = false;
+  private settingsOpen = false;
   private seed = 'ward-a';
   private speed = 1;
   private driftShown = false;
-  private pauseRequested = false;
-  private verifyRequested: AdvisorId | '' = '';
-  private keepEnabled = false;
-  /** Pause: the runtime only ever sees wall time minus the time spent paused. */
-  private paused = false;
-  private pausedSince = 0;
-  private pausedTotalMs = 0;
+  private firstShift = true;
+  /** Which near-edge row is live: module buttons, settings toggles, the card, or nothing. */
+  private row: 'none' | 'starts' | 'toggles' | 'card' = 'none';
+  /**
+   * Time. The runtime only ever sees wall time minus the time spent frozen.
+   * pause, tracking and settings also block input; tutorial only stops the clock.
+   */
+  private freeze: Record<FreezeReason, boolean> = {
+    pause: false,
+    tracking: false,
+    settings: false,
+    tutorial: false,
+  };
+  private frozenSince = 0;
+  private frozenTotalMs = 0;
+  private trackingCheckIn = 0;
+  private lostFor = 0;
   /** Unresolved patients on the table, with what the runtime last told us. */
   private stage = new Map<number, Stage>();
   private commitZone = new Map<number, Zone>();
@@ -146,6 +184,7 @@ export class ShiftSystem extends createSystem({
   private resultKey = '';
   private resultLines: PanelLine[] = [];
   private resultShort: PanelLine | null = null;
+  private debriefShown: PanelLine[] = [];
   private notice = '';
   private noticeUntil = 0;
   private names: Partial<Record<AdvisorId, string>> = {};
@@ -159,14 +198,8 @@ export class ShiftSystem extends createSystem({
     const params = new URLSearchParams(window.location.search);
     const dev = import.meta.env.DEV;
     this.seed = (dev && TEST_RUN.seed) || params.get('seed') || 'ward-a';
-    const speed = Number((dev && TEST_RUN.speed) || params.get('speed') || 1);
+    const speed = Number((dev && (TEST_RUN.speed || params.get('speed'))) || 1);
     this.speed = Number.isFinite(speed) && speed >= 1 && speed <= 16 ? speed : 1;
-    const asked = ((dev && TEST_RUN.module) || params.get('module')) as ModuleId | null;
-    this.unlocked = loadUnlocked();
-    if (asked && MODULE_ORDER.includes(asked)) {
-      // Testing aid: a named module is playable even if not unlocked yet.
-      this.unlocked = Math.max(this.unlocked, MODULE_ORDER.indexOf(asked) + 1);
-    }
     for (const plinth of ShiftSystem.plinths) {
       const id = plinth.advisorId;
       const name = advisorData.advisors[id].name; // display name only
@@ -174,12 +207,17 @@ export class ShiftSystem extends createSystem({
       plinth.label = labelPlinth(plinth.entity.object3D!, name, true);
       plinth.badge = buildDriftBadge(plinth.entity.object3D!, advisorData.drift.cueText);
     }
-    ShiftSystem.ui.starts.forEach((b, i) => showButtonLabel(b, i < this.unlocked ? 0 : 1));
-    ShiftSystem.ui.starts.forEach((b, i) =>
-      b.cap.color.setHex(i < this.unlocked ? PALETTE.keepOn : PALETTE.button),
+    const rest = new Vector3();
+    const up = (v: Vector3, y: number) => v.clone().setY(v.y + y);
+    this.tutorial = new Tutorial(
+      ShiftSystem.ghost,
+      up(TokenSystem.laneSlots[0], 0.03),
+      ZONES.map((zone) => up(this.trays.restPosition(zone, rest), 0.03)),
+      up(this.ui.keep.root.position, 0.016),
+      up(this.ui.card.mesh.position, 0.02),
     );
     console.info(
-      `[shift] ready seed=${this.seed} unlocked=${this.unlocked} speed=${this.speed}`,
+      `[shift] ready seed=${this.seed} speed=${this.speed} settings=${JSON.stringify(access.settings)} tutorial=${access.tutorialOn}`,
     );
 
     // Act on release, not on press: changing a target under a pressing hand
@@ -203,55 +241,115 @@ export class ShiftSystem extends createSystem({
       this.queries.pausePressed.subscribe('disqualify', () => {
         this.pauseRequested = true;
       }),
+      this.queries.settingsPressed.subscribe('disqualify', () => {
+        this.settingsRequested = true;
+      }),
+      this.queries.togglePressed.subscribe('disqualify', (entity) => {
+        this.toggleRequested = (entity.getValue(SettingToggle, 'key') ?? '') as ToggleKey;
+      }),
     );
-    this.setStartShown(false);
+    for (const entity of [...ShiftSystem.startEntities, ...ShiftSystem.toggleEntities, ShiftSystem.cardEntity]) {
+      entity.setValue(Visibility, 'isVisible', false);
+    }
+    this.applyAccess();
   }
 
-  /** Shift time as the runtime sees it: wall time with paused stretches removed. */
+  // ---- time -------------------------------------------------------------
+
+  private get frozen(): boolean {
+    const f = this.freeze;
+    return f.pause || f.tracking || f.settings || f.tutorial;
+  }
+
+  /** Input is refused while paused, while hands are lost, or in settings. */
+  private get blocked(): boolean {
+    const f = this.freeze;
+    return f.pause || f.tracking || f.settings;
+  }
+
+  private setFreeze(reason: FreezeReason, on: boolean): void {
+    if (this.freeze[reason] === on) {
+      return;
+    }
+    const wall = performance.now();
+    const was = this.frozen;
+    this.freeze[reason] = on;
+    if (!was && this.frozen) {
+      this.frozenSince = wall;
+    } else if (was && !this.frozen) {
+      this.frozenTotalMs += wall - this.frozenSince;
+    }
+    this.refreshIn = 0;
+  }
+
+  /** Shift time as the runtime sees it: wall time with frozen stretches removed. */
   private now(): number {
     const wall = performance.now();
-    return (wall - this.pausedTotalMs - (this.paused ? wall - this.pausedSince : 0)) * this.speed;
+    return (wall - this.frozenTotalMs - (this.frozen ? wall - this.frozenSince : 0)) * this.speed;
   }
+
+  // ---- frame ------------------------------------------------------------
 
   update(delta: number, time: number): void {
     this.clock = time;
-    if (this.ended) {
-      this.updateAfterEnd();
+    this.updateSettings();
+    const playing = this.started && !this.ended;
+    const inXR = this.world.visibilityState.peek() !== VisibilityState.NonImmersive;
+    const ready = inXR && this.placement.isPlaced;
+    this.setRow(
+      this.settingsOpen ? 'toggles' : !ready ? 'none' : !playing ? 'starts' : this.stage.has(this.focus) ? 'card' : 'none',
+    );
+    if (!playing) {
+      this.updateIdle(ready);
       return;
     }
-    if (!this.started) {
-      this.updateBeforeStart();
-      return;
-    }
+    this.updateTracking(delta);
     if (this.pauseRequested) {
       this.pauseRequested = false;
-      this.togglePause();
-    }
-    if (this.paused) {
-      this.refreshIn -= delta;
-      if (this.refreshIn <= 0) {
-        this.refreshIn = REFRESH_SEC;
-        this.draw(this.now());
+      if (!this.settingsOpen && !this.freeze.tracking) {
+        this.setFreeze('pause', !this.freeze.pause);
+        showButtonLabel(this.ui.pause, this.freeze.pause ? 1 : 0);
+        console.info(
+          `[shift] ${this.freeze.pause ? 'pause' : 'resume'} remaining=${this.runtime.remainingSec(this.now()).toFixed(2)}s`,
+        );
       }
-      return;
+    }
+    if (this.tutorial.active) {
+      const first = this.stage.get(0);
+      const done = this.tutorial.update(this.blocked ? 0 : delta, {
+        stage: first ?? (this.resolvedCount > 0 ? 'resolved' : 'none'),
+        cardExpanded: this.expanded,
+        tokenTouched: this.tokens.lastTouched === 0 && this.tokens.grabs > 0,
+        adviceShown: this.adviceVisible,
+      });
+      this.setFreeze('tutorial', this.tutorial.holdsClock);
+      if (done) {
+        access.tutorialCompleted();
+        this.applyAccess();
+      }
     }
     const now = this.now();
-    this.handle(this.runtime.tick(now));
-    if (this.ended) {
-      return;
-    }
-    if (this.keepRequested) {
-      this.keepRequested = false;
-      const zone = this.commitZone.get(this.focus);
-      if (this.keepEnabled && zone) {
-        const result = this.runtime.finalize(this.focus, zone, now);
-        console.info(`[shift] keep ${this.focus} ${zone} ok=${result.ok}`);
-        this.handle(this.runtime.tick(now));
+    if (!this.blocked) {
+      this.handle(this.runtime.tick(now));
+      if (this.ended) {
+        return;
+      }
+      if (this.keepRequested) {
+        const zone = this.commitZone.get(this.focus);
+        if (this.keepEnabled && zone) {
+          const result = this.runtime.finalize(this.focus, zone, now);
+          console.info(`[shift] keep ${this.focus} ${zone} ok=${result.ok}`);
+          this.handle(this.runtime.tick(now));
+        }
+      }
+      if (this.verifyRequested) {
+        this.verify(this.verifyRequested, now);
       }
     }
-    if (this.verifyRequested) {
-      this.verify(this.verifyRequested, now);
-      this.verifyRequested = '';
+    this.keepRequested = false;
+    this.verifyRequested = '';
+    if (this.ended) {
+      return;
     }
     this.refreshIn -= delta;
     if (this.refreshIn <= 0) {
@@ -260,62 +358,166 @@ export class ShiftSystem extends createSystem({
     }
   }
 
-  private updateBeforeStart(): void {
-    const ready =
-      this.world.visibilityState.peek() !== VisibilityState.NonImmersive &&
-      this.placement.isPlaced;
-    this.setStartShown(ready);
+  /** Before the first shift and after a debrief: the module buttons are live. */
+  private updateIdle(ready: boolean): void {
     const asked = this.startRequested;
     this.startRequested = 0;
     this.pauseRequested = false;
-    if (ready && asked > 0) {
-      console.info(`[shift] start pressed module=${asked} unlocked=${this.unlocked}`);
-      if (asked > this.unlocked) {
-        this.showNotice(`Finish Module ${asked - 1} to unlock Module ${asked}.`);
-      } else {
-        this.begin(MODULE_ORDER[asked - 1]);
-        return;
-      }
+    this.keepRequested = false;
+    this.verifyRequested = '';
+    if (ready && asked > 0 && !this.settingsOpen && this.tokens.heldCount === 0) {
+      console.info(`[shift] start pressed module=${asked}`);
+      this.begin(MODULE_ORDER[asked - 1]);
+      return;
+    }
+    if (this.ended) {
+      this.ui.debrief.set('debrief', this.debriefShown);
+      return;
     }
     const em = TEXT_EM.speech;
     const lines: PanelLine[] = [
       { text: 'Second Opinion', bold: true, em: TEXT_EM.speechHead },
       { text: 'Commit your call. Then see if the AI agrees.', em },
     ];
-    if (ready) {
+    if (this.settingsOpen) {
+      lines.push(...this.settingsLines());
+    } else if (ready) {
+      lines.push({ text: 'Sit at a table. Keep drinks away from your hands.', em, color: '#9ec1ff' });
       MODULE_ORDER.forEach((id, i) => {
+        const patients = shiftConfig.modules[id].patients;
         lines.push({
-          text: `Module ${i + 1} \u00B7 ${MODULE_TITLE[id]}${i < this.unlocked ? '' : ' (locked)'}`,
+          text: `Module ${i + 1} · ${MODULE_NAME[id]} · ${patients} patients${i === 0 && this.firstShift ? ' · start here' : ''}`,
           em,
-          color: i < this.unlocked ? '#f2f6ff' : '#7d8aa3',
+          bold: i === 0 && this.firstShift,
         });
       });
-      lines.push({ text: 'Poke a module to start.', em, color: '#ffd166' });
+      lines.push({ text: 'Poke a module to start.', em, color: ACCENT });
     } else {
-      lines.push({ text: 'Place your ward to begin.', em, color: '#ffd166' });
+      lines.push({ text: 'Place your ward to begin.', em, color: ACCENT });
     }
-    const noticeActive = this.notice !== '' && this.clock < this.noticeUntil;
-    if (noticeActive) {
-      lines.push({ text: this.notice, em, bold: true, color: '#ffd166' });
-    }
-    this.ui.speech.set(`pre-${ready}-${noticeActive ? this.notice : ''}`, lines);
+    this.ui.speech.set(lines.map((l) => l.text).join('|'), lines);
   }
 
-  /** Debrief on screen; the module buttons return so the next shift can start. */
-  private updateAfterEnd(): void {
-    this.setStartShown(true);
-    const asked = this.startRequested;
-    this.startRequested = 0;
-    this.pauseRequested = false;
-    this.verifyRequested = '';
-    this.keepRequested = false;
-    if (asked > 0 && asked <= this.unlocked && this.tokens.heldCount === 0) {
-      this.reset();
-      this.begin(MODULE_ORDER[asked - 1]);
+  // ---- settings and accessibility ---------------------------------------
+
+  private updateSettings(): void {
+    if (this.settingsRequested) {
+      this.settingsRequested = false;
+      this.settingsOpen = !this.settingsOpen;
+      showButtonLabel(this.ui.settings, this.settingsOpen ? 1 : 0);
+      if (this.started && !this.ended) {
+        this.setFreeze('settings', this.settingsOpen);
+      }
+      console.info(`[settings] ${this.settingsOpen ? 'open' : 'closed'}`);
+      this.refreshIn = 0;
+    }
+    const key = this.toggleRequested;
+    this.toggleRequested = '';
+    if (key && this.settingsOpen) {
+      const changed = access.toggle(key);
+      this.notice = !changed
+        ? 'Finish the tutorial once to turn it off.'
+        : key === 'calm' && this.started && !this.ended
+          ? 'Calm mode applies from the next shift.'
+          : '';
+      this.noticeUntil = this.clock + NOTICE_SEC;
+      console.info(`[settings] ${key}=${access.isOn(key)} changed=${changed}`);
+      this.applyAccess();
     }
   }
 
-  private reset(): void {
+  private settingsLines(): PanelLine[] {
+    const em = TEXT_EM.speech;
+    const lines: PanelLine[] = [
+      { text: 'Settings', bold: true, em: TEXT_EM.speechHead },
+      { text: 'Contrast: black panels, white outlines.', em },
+      { text: 'Calm: slower arrivals, longer windows.', em },
+      { text: 'Big text: larger panels.', em },
+      { text: 'One hand is enough for every action. Sound is off.', em, color: '#9ec1ff' },
+      { text: 'Poke Close to go back.', em, color: ACCENT },
+    ];
+    if (this.notice !== '' && this.clock < this.noticeUntil) {
+      lines.push({ text: this.notice, em, bold: true, color: ACCENT });
+    }
+    return lines;
+  }
+
+  /** Apply the saved settings to everything on the table. Safe to call at any time. */
+  private applyAccess(): void {
+    const contrast = access.settings.highContrast;
+    const ward = ShiftSystem.ward;
+    const paint = (mesh: { material: unknown }, normal: number) =>
+      (mesh.material as { color: { setHex(hex: number): void } }).color.setHex(contrast ? 0x000000 : normal);
+    paint(ward.floor, PALETTE.floor);
+    paint(ward.lane, PALETTE.lane);
+    paint(ward.rail, PALETTE.rail);
+    for (const tray of ward.trays) {
+      tray.frame.visible = contrast;
+    }
+    scalePanels(this.ui, access.panelScale);
+    for (const toggle of this.ui.toggles) {
+      const on = access.isOn(toggle.key);
+      showButtonLabel(toggle.parts, on ? 1 : 0);
+      toggle.parts.cap.color.setHex(on ? PALETTE.keepOn : PALETTE.button);
+    }
+    this.ui.starts.forEach((b, i) => {
+      b.cap.emissive.setHex(i === 0 && this.firstShift ? 0x2a5a1a : 0x000000);
+    });
+    this.refreshIn = 0;
+  }
+
+  /** Only the visible near-edge row takes pokes; hidden targets must not. */
+  private setRow(row: 'none' | 'starts' | 'toggles' | 'card'): void {
+    if (row === this.row) {
+      return;
+    }
+    this.row = row;
+    const set = (entity: Entity, on: boolean) => {
+      entity.setValue(Visibility, 'isVisible', on);
+      if (on) {
+        if (!entity.hasComponent(RayInteractable)) entity.addComponent(RayInteractable);
+        if (!entity.hasComponent(PokeInteractable)) entity.addComponent(PokeInteractable);
+      } else {
+        if (entity.hasComponent(RayInteractable)) entity.removeComponent(RayInteractable);
+        if (entity.hasComponent(PokeInteractable)) entity.removeComponent(PokeInteractable);
+      }
+    };
+    ShiftSystem.startEntities.forEach((e) => set(e, row === 'starts'));
+    ShiftSystem.toggleEntities.forEach((e) => set(e, row === 'toggles'));
+    set(ShiftSystem.cardEntity, row === 'card');
+  }
+
+  /** Freeze the shift while no hand (or controller) has a pose. One hand is enough. */
+  private updateTracking(delta: number): void {
+    this.trackingCheckIn -= delta;
+    if (this.trackingCheckIn > 0) {
+      return;
+    }
+    this.trackingCheckIn = TRACKING_CHECK_SEC;
+    const frame = this.renderer.xr.getFrame();
+    const space = this.renderer.xr.getReferenceSpace();
+    let tracked = !frame || !space; // outside a session there is nothing to lose
+    if (frame && space) {
+      for (const side of ['left', 'right'] as const) {
+        const source = this.input.xr.getPrimaryInputSource(side);
+        if (source && frame.getPose(source.gripSpace ?? source.targetRaySpace, space)) {
+          tracked = true;
+        }
+      }
+    }
+    this.lostFor = tracked ? 0 : this.lostFor + TRACKING_CHECK_SEC;
+    const lost = this.lostFor >= TRACKING_LOST_SEC;
+    if (lost !== this.freeze.tracking) {
+      this.setFreeze('tracking', lost);
+      console.info(
+        `[shift] tracking ${lost ? 'lost' : 'resumed'} remaining=${this.runtime.remainingSec(this.now()).toFixed(2)}s`,
+      );
+    }
+  }
+
+  // ---- shift ------------------------------------------------------------
+
+  private begin(module: ModuleId): void {
     this.ended = false;
     this.stage.clear();
     this.commitZone.clear();
@@ -328,49 +530,35 @@ export class ShiftSystem extends createSystem({
     this.resultKey = '';
     this.notice = '';
     this.driftShown = false;
-    this.paused = false;
-    this.pausedTotalMs = 0;
+    this.adviceVisible = false;
+    this.freeze = { pause: false, tracking: false, settings: false, tutorial: false };
+    this.frozenTotalMs = 0;
+    this.lostFor = 0;
     showButtonLabel(this.ui.pause, 0);
     this.ui.debrief.mesh.visible = false;
     this.ui.speech.mesh.visible = true;
-    for (const plinth of ShiftSystem.plinths) {
-      if (plinth.badge) {
-        plinth.badge.visible = false;
-      }
-    }
-  }
 
-  private begin(module: ModuleId): void {
     this.shift = buildShift({ seed: this.seed, cases: loadCases(), module });
     for (const plinth of ShiftSystem.plinths) {
       const onDuty = this.shift.lineup.includes(plinth.advisorId);
       plinth.body.color.setHex(onDuty ? PALETTE.advisor : PALETTE.advisorOff);
       (plinth.label?.material as { opacity: number }).opacity = onDuty ? 1 : 0.4;
+      if (plinth.badge) {
+        plinth.badge.visible = false;
+      }
     }
-    this.runtime = createShiftRuntime({ shift: this.shift, advisorNames: this.names });
+    const calm = access.settings.calm;
+    this.runtime = createShiftRuntime({ shift: this.shift, advisorNames: this.names, calm });
     this.started = true;
-    this.setStartShown(false);
+    this.tutorial.stop();
+    if (module === 'module1' && access.tutorialOn) {
+      this.tutorial.start();
+    }
     console.info(
-      `[shift] start seed=${this.seed} module=${module} patients=${this.shift.patients.length} tokens=${this.runtime.tokens} lineup=${this.shift.lineup.join(',')} drift=${this.shift.drift ? `${this.shift.drift.advisorId}/${this.shift.drift.category}@${this.shift.drift.atIndex}` : 'none'} speed=${this.speed}`,
+      `[shift] start seed=${this.seed} module=${module} patients=${this.shift.patients.length} tokens=${this.runtime.tokens} lineup=${this.shift.lineup.join(',')} drift=${this.shift.drift ? `${this.shift.drift.advisorId}/${this.shift.drift.category}@${this.shift.drift.atIndex}` : 'none'} calm=${calm} tutorial=${this.tutorial.active} speed=${this.speed}`,
     );
     console.info('[shift] start');
     this.handle(this.runtime.start(this.now()));
-    this.refreshIn = 0;
-  }
-
-  private togglePause(): void {
-    const wall = performance.now();
-    if (this.paused) {
-      this.pausedTotalMs += wall - this.pausedSince;
-      this.paused = false;
-      showButtonLabel(this.ui.pause, 0);
-      console.info(`[shift] resume remaining=${this.runtime.remainingSec(this.now()).toFixed(2)}s`);
-    } else {
-      console.info(`[shift] pause remaining=${this.runtime.remainingSec(this.now()).toFixed(2)}s`);
-      this.pausedSince = wall;
-      this.paused = true;
-      showButtonLabel(this.ui.pause, 1);
-    }
     this.refreshIn = 0;
   }
 
@@ -421,7 +609,7 @@ export class ShiftSystem extends createSystem({
     const i = intent.tokenId;
     const now = this.now();
     const stage = this.stage.get(i);
-    if (this.paused || !this.started) {
+    if (this.blocked || !this.started || this.ended) {
       this.tokens.revert(i);
     } else if (stage === 'arrived') {
       const result = this.runtime.commit(i, intent.zone, now);
@@ -507,31 +695,26 @@ export class ShiftSystem extends createSystem({
 
   private finish(): void {
     this.ended = true;
+    this.firstShift = false;
+    this.tutorial.stop();
     const { score, debrief, tokensLeft } = this.runtime.summary();
-    const before = this.unlocked;
-    this.unlocked = recordFinished(this.shift.module);
     const lines = debriefLines(debrief, score);
-    ShiftSystem.ui.starts.forEach((b, k) => {
-      showButtonLabel(b, k < this.unlocked ? 0 : 1);
-      b.cap.color.setHex(k < this.unlocked ? PALETTE.keepOn : PALETTE.button);
+    // History and streak (T05). The date comes from localDate.ts, the only wall-clock read.
+    const history = recordShift({ index: debrief.index, score: score.total }, localDate());
+    lines.push({
+      text: `Day streak: ${history.streak} · Shifts recorded: ${history.entries.length}`,
+      em: TEXT_EM.debrief,
+      color: '#9ec1ff',
     });
-    if (this.unlocked > before) {
-      lines.push({
-        text: `Module ${this.unlocked} unlocked.`,
-        em: TEXT_EM.debrief,
-        bold: true,
-        color: '#5fd39a',
-      });
-    }
     lines.push({
       text: 'Poke a module button to play another shift.',
       em: TEXT_EM.debrief,
       color: '#9ec1ff',
     });
+    this.debriefShown = lines;
     this.ui.debrief.set('debrief', lines);
     this.ui.debrief.mesh.visible = true;
     this.ui.speech.mesh.visible = false;
-    this.ui.card.mesh.visible = false;
     this.setKeep(false);
     this.highlightPlinths(null, []);
     for (const plinth of ShiftSystem.plinths) {
@@ -539,7 +722,8 @@ export class ShiftSystem extends createSystem({
         plinth.badge.visible = false;
       }
     }
-    // Logged diff for T07 acceptance: every debrief sentence must be on the panel verbatim.
+    this.applyAccess();
+    // Logged diff (T07 acceptance): every debrief sentence must be on the panel verbatim.
     const shown = new Set(lines.map((l) => l.text));
     const missing = debriefSentences(debrief).filter((s) => !shown.has(s));
     const indexShown = lines.some((l) =>
@@ -552,7 +736,7 @@ export class ShiftSystem extends createSystem({
     );
     console.info(`[debrief] ${JSON.stringify(debrief)}`);
     console.info(
-      `[shift] end module=${this.shift.module} unlocked=${this.unlocked} score=${score.total} outcome=${score.outcome} restraint=${score.restraint} tokensLeft=${tokensLeft} elapsed=${this.runtime.elapsedSec(this.now()).toFixed(1)}s seed=${this.seed}`,
+      `[shift] end module=${this.shift.module} score=${score.total} outcome=${score.outcome} restraint=${score.restraint} tokensLeft=${tokensLeft} elapsed=${this.runtime.elapsedSec(this.now()).toFixed(1)}s seed=${this.seed} calm=${access.settings.calm} streak=${history.streak} recorded=${history.entries.length}`,
     );
   }
 
@@ -574,8 +758,6 @@ export class ShiftSystem extends createSystem({
   private draw(now: number): void {
     const i = (this.focus = this.pickFocus());
     const stage = this.stage.get(i);
-    const card = this.ui.card;
-    card.mesh.visible = stage !== undefined;
 
     // No advice while any uncommitted token is in a hand, whichever patient is in focus.
     let uncommittedInHand = false;
@@ -592,7 +774,8 @@ export class ShiftSystem extends createSystem({
       !!lead &&
       !uncommittedInHand &&
       this.clock >= (this.revealAt.get(i) ?? Infinity);
-    this.setKeep(adviceShown && !this.paused);
+    this.adviceVisible = adviceShown;
+    this.setKeep(adviceShown && !this.blocked);
     const view = stage !== undefined ? this.runtime.publicView(i) : null;
     const verified = adviceShown && view?.verified ? view.verified : [];
     this.highlightPlinths(adviceShown && lead ? lead.advisorId : null, verified.map((v) => v.advisorId));
@@ -602,10 +785,10 @@ export class ShiftSystem extends createSystem({
     for (const index of this.stage.keys()) {
       const pv = this.runtime.publicView(index);
       const left = pv.arrivalSec + pv.windowSec - elapsed;
-      this.tokens.setWindow(index, left / shiftConfig.shift.windowSeconds, left <= 8);
+      this.tokens.setWindow(index, left / pv.windowSec, left <= 8, pv.surge);
     }
 
-    // Drift cue: a quiet badge, shown when the runtime says so.
+    // Drift cue: a quiet tag, shown when the runtime says so.
     const cue = this.runtime.driftCue(now);
     for (const plinth of ShiftSystem.plinths) {
       if (plinth.badge) {
@@ -618,30 +801,22 @@ export class ShiftSystem extends createSystem({
     }
 
     if (view) {
-      const left = Math.max(
-        0,
-        Math.ceil(view.arrivalSec + view.windowSec - this.runtime.elapsedSec(now)),
-      );
+      const left = Math.max(0, Math.ceil(view.arrivalSec + view.windowSec - elapsed));
       const v = view.case.vitals;
       const em = TEXT_EM.card;
       const lines: PanelLine[] = [
         {
-          text: `${view.surge ? 'SURGE · ' : ''}Patient ${i + 1} · ${cap(view.case.ageBand)} · ${cap(view.case.category)} · ${left} s left`,
+          text: `${view.surge ? 'SURGE' : 'Patient'} ${i + 1} · ${cap(view.case.ageBand)} · ${cap(view.case.category)} · ${left} s`,
           bold: true,
           em,
           color: left <= 8 ? '#ffc35c' : '#9ec1ff',
         },
         { text: view.case.complaint, em },
+        this.expanded
+          ? { text: `Pulse ${v.pulse} · BP ${v.sbp}/${v.dbp} · O₂ ${v.spo2}% · ${v.temp}°C`, em }
+          : { text: 'Poke this card to read the vitals.', em, color: ACCENT },
       ];
-      if (this.expanded) {
-        lines.push({
-          text: `Pulse ${v.pulse} · BP ${v.sbp}/${v.dbp} · Oxygen ${v.spo2}% · Temp ${v.temp}°`,
-          em,
-        });
-      } else {
-        lines.push({ text: 'Poke this card to read the vitals.', em, color: '#ffd166' });
-      }
-      card.set(`${i}-${left}-${this.expanded}`, lines);
+      this.ui.card.set(`${i}-${left}-${this.expanded}`, lines);
     }
 
     // HUD line: always on top of the speech panel.
@@ -652,7 +827,7 @@ export class ShiftSystem extends createSystem({
       ? ` · Opinions ${'●'.repeat(tokensLeft)}${'○'.repeat(Math.max(0, (this.shift.tokens ?? 0) - tokensLeft))}`
       : '';
     const hud: PanelLine = {
-      text: `${this.paused ? 'PAUSED · ' : ''}${clockText(remaining)} left · Patient ${Math.min(this.resolvedCount + 1, this.shift.patients.length)}/${this.shift.patients.length} · Score ${this.scoreTotal}${pips}`,
+      text: `${clockText(remaining)} left · Patient ${Math.min(this.resolvedCount + 1, this.shift.patients.length)}/${this.shift.patients.length} · Score ${this.scoreTotal}${pips}`,
       em: TEXT_EM.speech,
       color: remaining <= 30 ? '#ffc35c' : '#9ec1ff',
     };
@@ -661,59 +836,77 @@ export class ShiftSystem extends createSystem({
       this.resultAt >= 0 &&
       (this.clock - this.resultAt < RESULT_MIN_SEC || this.tokens.grabs === this.resultGrabs);
     const noticeActive = this.notice !== '' && this.clock < this.noticeUntil;
+    const teach = this.tutorial.active ? this.tutorial.line : '';
     const em = TEXT_EM.speech;
+    const head = TEXT_EM.speechHead;
     const body: PanelLine[] = [];
-    let key: string;
-    if (this.paused) {
-      key = 'paused';
-      body.push({ text: 'Paused', bold: true, em: TEXT_EM.speechHead });
+    if (this.freeze.tracking) {
+      body.push({ text: 'Show your hands to continue.', bold: true, em: head });
+      body.push({ text: 'The clock is stopped.', em });
+    } else if (this.settingsOpen) {
+      body.push(...this.settingsLines());
+    } else if (this.freeze.pause) {
+      body.push({ text: 'Paused', bold: true, em: head });
       body.push({ text: 'Poke Resume to continue. The clock is stopped.', em });
     } else if (adviceShown && lead) {
-      key = `advice-${i}-${verified.length}`;
-      // One call line per advisor heard; the quote only for the latest speaker.
-      const said = (id: AdvisorId) => {
-        const word = id === lead.advisorId ? CONFIDENCE_WORD[lead.statedConfidence] : '';
-        return `${this.names[id] ?? id}${word ? `, ${word}` : ''}`;
+      // One call line per advisor heard. Up to two quotes stay on screen:
+      // the lead advisor's and the latest second opinion's.
+      const said = (advice: { advisorId: AdvisorId; call: Zone }, confidence: string): PanelLine => {
+        const word = CONFIDENCE_WORD[confidence] ?? '';
+        return {
+          text: `${this.names[advice.advisorId] ?? advice.advisorId}${word ? `, ${word}` : ''}: ${ZONE_MARK[advice.call]}`,
+          bold: true,
+          em,
+          color: ZONE_COLOR[advice.call],
+        };
       };
-      body.push({ text: `${said(lead.advisorId)}: ${ZONE_MARK[lead.call]}`, bold: true, em, color: ZONE_COLOR[lead.call] });
-      for (const second of verified) {
-        body.push({ text: `${said(second.advisorId)}: ${ZONE_MARK[second.call]}`, bold: true, em, color: ZONE_COLOR[second.call] });
-      }
-      const latest = verified.length > 0 ? verified[verified.length - 1] : lead;
-      const verySure = latest === lead && lead.statedConfidence === 'very_high';
-      body.push({ text: `\u201C${latest.line}\u201D`, em, italic: verySure, bold: verySure });
-      const canVerify = this.runtime.availableVerifiers(i).length > 0;
-      body.push({
-        text: canVerify
-          ? 'Keep, move the token, or poke an advisor (1 token, clock +3 s).'
-          : hasTokens && tokensLeft <= 0
-            ? 'Keep or move the token. No second opinions left.'
-            : 'Press Keep, or move the token to change your call.',
-        em,
-        color: '#ffd166',
+      const verySure = lead.statedConfidence === 'very_high';
+      body.push(said(lead, lead.statedConfidence));
+      body.push({ text: `“${lead.line}”`, em, italic: verySure });
+      verified.forEach((second, k) => {
+        body.push(said(second, ''));
+        if (k === verified.length - 1) {
+          body.push({ text: `“${second.line}”`, em });
+        }
       });
-      if (resultActive && this.resultShort) {
-        key += `-${this.resultKey}`;
+      if (teach) {
+        body.push({ text: teach, em, bold: true, color: ACCENT });
+      } else if (noticeActive) {
+        body.push({ text: this.notice, em, bold: true, color: ACCENT });
+      } else {
+        const canVerify = this.runtime.availableVerifiers(i).length > 0;
+        body.push({
+          text: canVerify
+            ? `Keep, move the token, or ask an advisor (1 ●, clock +${shiftConfig.verify.clockCostSeconds} s).`
+            : hasTokens && tokensLeft <= 0
+              ? 'Keep or move the token. No second opinions left.'
+              : 'Press Keep, or move the token to change your call.',
+          em,
+          color: ACCENT,
+        });
+      }
+      if (resultActive && this.resultShort && verified.length === 0) {
         body.push(this.resultShort);
       }
-    } else if (resultActive) {
-      key = this.resultKey;
+    } else if (resultActive && !(teach && this.tutorial.beat < 6)) {
       body.push(...this.resultLines);
+      if (teach) {
+        body.push({ text: teach, em, bold: true, color: ACCENT });
+      }
+    } else if (teach) {
+      body.push({ text: teach, bold: true, em: head, color: ACCENT });
     } else if (stage === 'arrived' || uncommittedInHand) {
-      key = 'prompt';
-      body.push({ text: 'Make your own call first.', bold: true, em: TEXT_EM.speechHead });
+      body.push({ text: 'Make your own call first.', bold: true, em: head });
     } else if (stage === 'committed') {
-      key = 'hold';
-      body.push({ text: '…', bold: true, em: TEXT_EM.speechHead });
+      body.push({ text: '…', bold: true, em: head });
     } else {
-      key = 'waiting';
       body.push({ text: 'Next patient on the way.', em });
     }
-    if (noticeActive && !this.paused) {
-      key += `-n:${this.notice}`;
-      body.push({ text: this.notice, em, bold: true, color: '#ffd166' });
+    if (noticeActive && !this.blocked && !(adviceShown && lead)) {
+      body.push({ text: this.notice, em, bold: true, color: ACCENT });
     }
-    this.ui.speech.set(`${hud.text}|${key}`, [hud, ...body]);
+    const all = [hud, ...body];
+    this.ui.speech.set(all.map((l) => l.text).join('|'), all);
   }
 
   private highlightPlinths(lead: AdvisorId | null, verified: readonly AdvisorId[]): void {
@@ -721,26 +914,6 @@ export class ShiftSystem extends createSystem({
       const hex =
         plinth.advisorId === lead ? 0x6a5a10 : verified.includes(plinth.advisorId) ? 0x24486e : 0x000000;
       plinth.stand.emissive.setHex(hex);
-    }
-  }
-
-  private setStartShown(shown: boolean): void {
-    if (shown === this.startShown) {
-      return;
-    }
-    this.startShown = shown;
-    for (const entity of ShiftSystem.startEntities) {
-      entity.setValue(Visibility, 'isVisible', shown);
-      if (shown) {
-        entity.addComponent(RayInteractable).addComponent(PokeInteractable);
-      } else {
-        if (entity.hasComponent(RayInteractable)) {
-          entity.removeComponent(RayInteractable);
-        }
-        if (entity.hasComponent(PokeInteractable)) {
-          entity.removeComponent(PokeInteractable);
-        }
-      }
     }
   }
 

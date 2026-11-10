@@ -15,6 +15,7 @@ import {
   MeshLambertMaterial,
   type Object3D,
 } from '@iwsdk/core';
+import type { ToggleKey } from '../access/access.js';
 import { createTextPanel, type TextPanel } from '../ui/TextPanel.js';
 import { createFlatLabel } from './label.js';
 import { PALETTE } from './palette.js';
@@ -30,7 +31,7 @@ export const TEXT_EM = {
 export interface ButtonParts {
   root: Group;
   cap: MeshLambertMaterial;
-  labels: Mesh[];
+  labels: Object3D[];
 }
 
 export interface ShiftUiParts {
@@ -42,6 +43,10 @@ export interface ShiftUiParts {
   starts: ButtonParts[];
   /** labels[0] = "Pause", labels[1] = "Resume". */
   pause: ButtonParts;
+  /** Opens the settings row. labels[0] = "Menu", labels[1] = "Close". */
+  settings: ButtonParts;
+  /** Shown in place of the card while settings are open. labels[0] = off, labels[1] = on. */
+  toggles: Array<{ key: ToggleKey; parts: ButtonParts }>;
 }
 
 function button(
@@ -57,58 +62,88 @@ function button(
   const box = new Mesh(new BoxGeometry(width, 0.014, depth), cap);
   box.position.y = 0.007;
   root.add(box);
+  // A text may hold two rows ("name\nstate"); each row is its own flat label.
   const labels = texts.map((text, i) => {
-    const label = createFlatLabel(text, {
-      width: width * 0.92,
-      height: Math.min(depth * 0.6, 0.024),
-      color: PALETTE.text,
+    const rows = text.split('\n');
+    const rowDepth = Math.min((depth * 0.92) / rows.length, 0.024);
+    const group = new Group();
+    rows.forEach((row, r) => {
+      const label = createFlatLabel(row, {
+        width: width * 0.94,
+        height: rowDepth,
+        color: PALETTE.text,
+      });
+      label.position.z = (r - (rows.length - 1) / 2) * rowDepth;
+      group.add(label);
     });
-    label.position.y = 0.0145;
-    label.visible = i === 0;
-    root.add(label);
-    return label;
+    group.position.y = 0.0145;
+    group.visible = i === 0;
+    root.add(group);
+    return group;
   });
   return { root, cap, labels };
 }
 
+const SPEECH_TILT = (15 * Math.PI) / 180;
+const SPEECH_BASE_Y = 0.075;
+const DEBRIEF_TILT = (25 * Math.PI) / 180;
+const DEBRIEF_BASE_Y = 0.037;
+
+/** Large text: the two far panels grow about their bottom edge, so nothing on the table moves. */
+export function scalePanels(ui: ShiftUiParts, scale: number): void {
+  ui.speech.mesh.scale.setScalar(scale);
+  ui.speech.mesh.position.y = SPEECH_BASE_Y + 0.16 * scale * Math.cos(SPEECH_TILT);
+  ui.debrief.mesh.scale.setScalar(scale);
+  ui.debrief.mesh.position.y = DEBRIEF_BASE_Y + 0.18 * scale * Math.cos(DEBRIEF_TILT);
+}
+
+const TOGGLES: Array<{ key: ToggleKey; label: string }> = [
+  { key: 'highContrast', label: 'Contrast' },
+  { key: 'calm', label: 'Calm' },
+  { key: 'largeText', label: 'Big text' },
+  { key: 'tutorial', label: 'Tutorial' },
+];
+
 export function buildShiftUi(): ShiftUiParts {
-  const card = createTextPanel('Vitals Card', 0.34, 0.135);
+  const card = createTextPanel('Vitals Card', 0.34, 0.11);
   // Lies on the near edge, raised 20 degrees so it faces a seated player
   // without hiding the tray labels behind it.
   card.mesh.rotation.x = -Math.PI / 2 + (20 * Math.PI) / 180;
   card.mesh.position.set(-0.035, 0.026, 0.131);
   card.mesh.visible = false;
 
-  const speech = createTextPanel('Speech Panel', 0.56, 0.3);
-  speech.mesh.rotation.x = (-15 * Math.PI) / 180;
-  speech.mesh.position.set(0, 0.22, -0.225);
+  const speech = createTextPanel('Speech Panel', 0.56, 0.32);
+  speech.mesh.rotation.x = -SPEECH_TILT;
+  speech.mesh.position.set(0, SPEECH_BASE_Y + 0.16 * Math.cos(SPEECH_TILT), -0.225);
 
   const debrief = createTextPanel('Debrief Panel', 0.56, 0.36);
-  debrief.mesh.rotation.x = (-25 * Math.PI) / 180;
-  debrief.mesh.position.set(0, 0.2, -0.1);
+  debrief.mesh.rotation.x = -DEBRIEF_TILT;
+  debrief.mesh.position.set(0, DEBRIEF_BASE_Y + 0.18 * Math.cos(DEBRIEF_TILT), -0.1);
   debrief.mesh.visible = false;
 
   const keep = button('Keep Button', 0.045, 0.045, ['Keep'], PALETTE.button);
   keep.root.position.set(0.19, 0.005, 0.098);
 
-  // Where the card will be; only shown before the first patient.
-  // 9 cm wide, 2 cm gaps. labels[0] = unlocked, labels[1] = locked.
+  // Where the card will be; only shown before the first patient. 9 cm wide, 2 cm gaps.
   const starts = [1, 2, 3].map((n, i) => {
-    const parts = button(
-      `Start Module ${n}`,
-      0.09,
-      0.05,
-      [`Module ${n}`, `Module ${n} \u{1F512}`],
-      PALETTE.keepOn,
-    );
+    const parts = button(`Start Module ${n}`, 0.09, 0.05, [`Module ${n}`], PALETTE.keepOn);
     parts.root.position.set(-0.145 + i * 0.11, 0.005, 0.13);
     return parts;
   });
 
+  // Settings row, same place: four toggles, 7 cm wide, 2 cm gaps.
+  const toggles = TOGGLES.map(({ key, label }, i) => {
+    const parts = button(`Toggle ${label}`, 0.074, 0.05, [`${label}\noff`, `${label}\nON`], PALETTE.button);
+    parts.root.position.set(-0.1705 + i * 0.094, 0.005, 0.13);
+    return { key, parts };
+  });
+  const settings = button('Settings Button', 0.045, 0.04, ['Menu', 'Close'], PALETTE.button);
+  settings.root.position.set(0.2575, 0.005, 0.09);
+
   const pause = button('Pause Button', 0.045, 0.045, ['Pause', 'Resume'], PALETTE.button);
   pause.root.position.set(-0.25, 0.005, 0.15);
 
-  return { card, speech, debrief, keep, starts, pause };
+  return { card, speech, debrief, keep, starts, pause, settings, toggles };
 }
 
 /** Name label tilted toward the player, in front of an advisor plinth. */
@@ -125,21 +160,28 @@ export function labelPlinth(plinth: Object3D, name: string, onDuty: boolean): Me
 }
 
 /**
- * Drift cue: a small 'update installed' tag above an advisor (docs/02 section 7).
- * Small and quiet by design, still at least 1.2 cm text at its distance.
+ * Drift cue: a small two-line 'update installed' tag on the rail in front of
+ * an advisor's name (docs/02 section 7). Quiet by design: capitals about
+ * 1.05 cm tall, a little under the usual text rule.
  */
-export function buildDriftBadge(plinth: Object3D, text: string): Mesh {
-  // A tag hovering above the advisor, nearly upright: about 1.3 cm capitals at 60 cm.
-  // Wider than the plinth pitch, so it floats above the neighbours (not a target).
-  const badge = createFlatLabel(text, {
-    width: 0.17,
-    height: 0.026,
-    color: '#0b1220',
-    background: '#c9d6ea',
-    bold: false,
+export function buildDriftBadge(plinth: Object3D, text: string): Group {
+  const badge = new Group();
+  const words = text.split(' ');
+  const half = Math.ceil(words.length / 2);
+  const row = 0.021;
+  [words.slice(0, half).join(' '), words.slice(half).join(' ')].forEach((line, i) => {
+    const label = createFlatLabel(line, {
+      width: 0.088,
+      height: row,
+      color: '#0b1220',
+      background: '#c9d6ea',
+    });
+    label.position.z = (i - 0.5) * row;
+    badge.add(label);
   });
-  badge.rotation.x = -Math.PI / 8;
-  badge.position.set(0, 0.105, 0.012);
+  // Flat on the floor in the 4 cm strip between the name label and the trays,
+  // so it hides neither the name nor the speech panel.
+  badge.position.set(0, 0.002, 0.076);
   badge.visible = false;
   plinth.add(badge);
   return badge;

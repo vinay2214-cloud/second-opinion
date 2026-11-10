@@ -131,13 +131,15 @@ export class TokenSystem extends createSystem({
    * left (so a shorter surge window starts as a shorter ring); `urgent` turns
    * it amber and dashed (shape cue, not colour only). Values come from the runtime.
    */
-  setWindow(index: number, fraction: number, urgent: boolean): void {
+  setWindow(index: number, fraction: number, urgent: boolean, surge = false): void {
     const entity = this.byIndex.get(index);
     const view = entity && this.views.get(entity);
     if (!view) {
       return;
     }
-    const lit = view.removeIn >= 0 ? 0 : Math.ceil(Math.max(0, Math.min(1, fraction)) * TIMER_SEGMENTS);
+    // A surge patient's ring is drawn shorter (three quarters), so the shorter window reads at a glance.
+    const full = surge ? Math.round(TIMER_SEGMENTS * 0.75) : TIMER_SEGMENTS;
+    const lit = view.removeIn >= 0 ? 0 : Math.ceil(Math.max(0, Math.min(1, fraction)) * full);
     view.parts.timerMaterial.color.setHex(urgent ? 0xffc35c : 0x9ec1ff);
     for (let k = 0; k < TIMER_SEGMENTS; k++) {
       view.parts.timer[k].visible = k < lit && (!urgent || k % 2 === 0);

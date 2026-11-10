@@ -13,6 +13,8 @@ import {
   AdvisorPlinth,
   KeepButton,
   PauseButton,
+  SettingsButton,
+  SettingToggle,
   StartButton,
   Token,
   Tray,
@@ -23,6 +25,7 @@ import { PlacementSystem } from '../game/systems/PlacementSystem.js';
 import { TokenSystem } from '../game/systems/TokenSystem.js';
 import { TraySystem } from '../game/systems/TraySystem.js';
 import { PlacementPad, RecentreButton } from './components.js';
+import { buildGhostHand } from '../access/ghostHand.js';
 import { buildShiftUi } from './shiftUi.js';
 import { buildWard, type WardParts } from './ward.js';
 
@@ -84,18 +87,42 @@ export function bootstrapWard(world: World): WardRuntime {
     .registerComponent(KeepButton)
     .registerComponent(AdvisorPlinth)
     .registerComponent(StartButton)
-    .registerComponent(PauseButton);
+    .registerComponent(PauseButton)
+    .registerComponent(SettingsButton)
+    .registerComponent(SettingToggle);
   for (const panel of [ui.speech, ui.debrief]) {
     parts.content.add(panel.mesh);
     world.createTransformEntity(panel.mesh, { parent: contentEntity });
   }
-  parts.content.add(ui.card.mesh, ui.keep.root, ui.pause.root, ...ui.starts.map((b) => b.root));
+  const ghost = buildGhostHand();
+  parts.content.add(
+    ui.card.mesh,
+    ui.keep.root,
+    ui.pause.root,
+    ui.settings.root,
+    ghost.root,
+    ...ui.starts.map((b) => b.root),
+    ...ui.toggles.map((t) => t.parts.root),
+  );
+  world.createTransformEntity(ghost.root, { parent: contentEntity });
+  ShiftSystem.ghost = ghost;
+  ShiftSystem.ward = parts;
   const pokeable = (object: Parameters<World['createTransformEntity']>[0]) =>
     world
       .createTransformEntity(object, { parent: contentEntity })
       .addComponent(RayInteractable)
       .addComponent(PokeInteractable);
-  pokeable(ui.card.mesh).addComponent(VitalsCard);
+  // The card, module buttons and toggles share the near edge; ShiftSystem makes
+  // only the visible row interactable.
+  ShiftSystem.cardEntity = world
+    .createTransformEntity(ui.card.mesh, { parent: contentEntity })
+    .addComponent(VitalsCard);
+  ShiftSystem.toggleEntities = ui.toggles.map((t) =>
+    world
+      .createTransformEntity(t.parts.root, { parent: contentEntity })
+      .addComponent(SettingToggle, { key: t.key }),
+  );
+  pokeable(ui.settings.root).addComponent(SettingsButton);
   pokeable(ui.keep.root).addComponent(KeepButton);
   pokeable(ui.pause.root).addComponent(PauseButton);
   // Start buttons are made interactable by ShiftSystem only while shown.

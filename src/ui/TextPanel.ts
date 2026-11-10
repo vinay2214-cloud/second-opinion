@@ -1,6 +1,7 @@
 // A flat panel with wrapped text, drawn with the 2D canvas API (docs/03
 // section 7 fallback). It only draws the strings it is given; it never reads
 // game state. Redraws happen only when the content changes.
+import { access } from '../access/access.js';
 import {
   CanvasTexture,
   Mesh,
@@ -49,14 +50,18 @@ export function createTextPanel(
   const pad = Math.round(0.008 * PX_PER_M);
 
   function set(key: string, lines: readonly PanelLine[]): void {
-    if (key === lastKey || !ctx) {
+    // Theme changes (high contrast) must redraw, so the theme version is part of the key.
+    const themed = `${access.version}|${key}`;
+    if (themed === lastKey || !ctx) {
       return;
     }
-    lastKey = key;
-    ctx.fillStyle = border;
+    lastKey = themed;
+    const contrast = access.settings.highContrast;
+    ctx.fillStyle = contrast ? '#ffffff' : border;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = background;
-    ctx.fillRect(4, 4, canvas.width - 8, canvas.height - 8);
+    ctx.fillStyle = contrast ? '#000000' : background;
+    const edge = contrast ? 10 : 4; // thicker outline in high contrast
+    ctx.fillRect(edge, edge, canvas.width - edge * 2, canvas.height - edge * 2);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     const maxWidth = canvas.width - pad * 2;

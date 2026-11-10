@@ -34,5 +34,11 @@ export const StartButton = createComponent('StartButton', {
 });
 /** Pause / Resume button on the table edge. */
 export const PauseButton = createComponent('PauseButton', {});
+/** Opens and closes the settings row. */
+export const SettingsButton = createComponent('SettingsButton', {});
+/** One accessibility toggle in the settings row. `key` is a ToggleKey. */
+export const SettingToggle = createComponent('SettingToggle', {
+  key: { type: Types.String, default: '' },
+});
 /** Keep button: confirms the committed call. */
 export const KeepButton = createComponent('KeepButton', {});

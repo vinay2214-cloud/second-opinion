@@ -24,6 +24,8 @@ export interface TrayParts {
   root: Group;
   /** Thin ring used for the highlight and the stamp pulse. */
   ring: Mesh;
+  /** White outline shown in high-contrast mode. */
+  frame: Mesh;
 }
 
 export interface WardParts {
@@ -38,6 +40,10 @@ export interface WardParts {
   plinths: Group[];
   recentreButton: Group;
   placementPad: Mesh;
+  /** Large surfaces that go black in high-contrast mode. */
+  floor: Mesh;
+  lane: Mesh;
+  rail: Mesh;
 }
 
 const lambert = (color: number) => new MeshLambertMaterial({ color });
@@ -93,8 +99,17 @@ function buildTray(zone: Zone): TrayParts {
   ring.name = `Tray Ring ${ZONE_TEXT[zone]}`;
   root.add(ring);
 
+  const frame = new Mesh(
+    new RingGeometry(0.0735, 0.0778, 4, 1, Math.PI / 4),
+    new MeshBasicMaterial({ color: 0xffffff }),
+  );
+  frame.rotation.x = -Math.PI / 2;
+  frame.position.y = 0.0086;
+  frame.visible = false;
+  root.add(frame);
+
   root.position.set(TRAY_X[zone], 0.005, 0);
-  return { zone, root, ring };
+  return { zone, root, ring, frame };
 }
 
 function buildPlinth(index: number): Group {
@@ -234,5 +249,8 @@ export function buildWard(): WardParts {
     plinths,
     recentreButton,
     placementPad,
+    floor,
+    lane,
+    rail,
   };
 }

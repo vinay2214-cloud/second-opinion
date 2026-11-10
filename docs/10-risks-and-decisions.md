@@ -81,3 +81,11 @@ Broke or unknown: S7 PARTIAL. Build loads from a /second-opinion/ subpath in a f
 Decisions: kept Vite base './' (works at any subpath). Removed @meta-quest/metavr (needs a USB headset, collects usage data). npm "latest" is 1.1.0-rc.2, there is no 1.0 tag; versions pinned.
 Tomorrow: finish S7 once the repo exists. T03 ward and placement, T04 token grab and tray snap. Astra can start T02 now.
 ```
+
+```
+Date: Tue 10 Nov 2026 (later), scene lane
+Done: Phase 0 housekeeping, T06 (tag gate1), T05 merged, T07, T08, T12. Live site deploys from main. Status and evidence index: docs/STATUS.md.
+Broke or unknown: external drive dropped once mid-run (no data lost). Dev server restarted itself once. Gaze-dwell skipped (S5 never run). No audio brief yet. Nothing tested on a Quest.
+Decisions: all modules selectable; history via src/game/localDate.ts; no separate one-hand mode (every action already works one-handed); calm applies from the next shift; drift tag lies flat on the rail.
+Tomorrow: Gate 2 check, T14, then T17 once Astra's T15 is merged.
+```
