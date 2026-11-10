@@ -83,6 +83,11 @@ export class PlacementSystem extends createSystem({
   }
 
   /** Re-anchor the ward in front of the player (docs/04: Re-centre). */
+  /** True once the ward stands on a table (real or virtual). */
+  get isPlaced(): boolean {
+    return this.phase === 'placed';
+  }
+
   recentre(): void {
     if (this.mode === 'virtual') {
       this.placeVirtual('recentre');

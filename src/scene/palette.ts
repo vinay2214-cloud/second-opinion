@@ -9,6 +9,7 @@ export const PALETTE = {
   trayBase: 0x101a2b,
   table: 0x6f7f95,
   button: 0x33507f,
+  keepOn: 0x3f8f5a,
   text: '#f2f6ff',
   textDark: '#0b1220',
   accent: 0xffd166,

@@ -7,11 +7,13 @@ import {
   RayInteractable,
   type World,
 } from '@iwsdk/core';
-import { Token, Tray } from '../game/components.js';
+import { KeepButton, Token, Tray, VitalsCard } from '../game/components.js';
+import { ShiftSystem } from '../game/systems/ShiftSystem.js';
 import { PlacementSystem } from '../game/systems/PlacementSystem.js';
 import { TokenSystem } from '../game/systems/TokenSystem.js';
 import { TraySystem } from '../game/systems/TraySystem.js';
 import { PlacementPad, RecentreButton } from './components.js';
+import { buildShiftUi } from './shiftUi.js';
 import { buildWard, type WardParts } from './ward.js';
 
 export interface WardRuntime {
@@ -57,13 +59,30 @@ export function bootstrapWard(world: World): WardRuntime {
     traySystem.addTray(tray);
   }
   TokenSystem.contentEntity = contentEntity;
-  TokenSystem.laneRest = new Vector3(
-    parts.laneSlot.position.x,
-    parts.laneSlot.position.y + 0.001,
-    parts.laneSlot.position.z,
+  TokenSystem.laneSlots = parts.laneSlots.map(
+    (slot) => new Vector3(slot.position.x, slot.position.y + 0.001, slot.position.z),
   );
   world.registerSystem(TokenSystem);
-  // One token so the grab loop can be exercised. T06 replaces this with runtime arrivals.
-  (world.getSystem(TokenSystem) as TokenSystem).spawnToken(0);
+
+  // Shift furniture and the runtime adapter (T06). Tokens now arrive from the runtime.
+  const ui = buildShiftUi();
+  world.registerComponent(VitalsCard).registerComponent(KeepButton);
+  for (const panel of [ui.speech, ui.debrief]) {
+    parts.content.add(panel.mesh);
+    world.createTransformEntity(panel.mesh, { parent: contentEntity });
+  }
+  parts.content.add(ui.card.mesh, ui.keepButton);
+  world
+    .createTransformEntity(ui.card.mesh, { parent: contentEntity })
+    .addComponent(VitalsCard)
+    .addComponent(RayInteractable)
+    .addComponent(PokeInteractable);
+  world
+    .createTransformEntity(ui.keepButton, { parent: contentEntity })
+    .addComponent(KeepButton)
+    .addComponent(RayInteractable)
+    .addComponent(PokeInteractable);
+  ShiftSystem.ui = ui;
+  world.registerSystem(ShiftSystem);
   return runtime;
 }

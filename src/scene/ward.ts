@@ -34,6 +34,7 @@ export interface WardParts {
   trays: TrayParts[];
   /** Where a waiting token rests on the arrival lane. */
   laneSlot: Object3D;
+  laneSlots: Object3D[];
   plinths: Group[];
   recentreButton: Group;
   placementPad: Mesh;
@@ -47,6 +48,7 @@ const ZONE_TEXT: Record<Zone, string> = { red: 'RED', amber: 'AMBER', green: 'GR
 /** Tray centres along X. The lane takes the left 13 cm, three trays the rest. */
 export const TRAY_X: Record<Zone, number> = { red: -0.075, amber: 0.075, green: 0.225 };
 export const LANE_X = -0.225;
+export const LANE_SLOT_Z = [0.03, -0.05, -0.13] as const;
 
 function buildTray(zone: Zone): TrayParts {
   const root = new Group();
@@ -149,16 +151,21 @@ export function buildWard(): WardParts {
 
   const lane = new Mesh(new BoxGeometry(0.13, 0.003, 0.24), lambert(PALETTE.lane));
   lane.name = 'Arrival Lane';
-  lane.position.set(LANE_X, 0.0065, 0.04);
+  lane.position.set(LANE_X, 0.0065, -0.05);
   content.add(lane);
 
-  const laneSlot = new Mesh(
-    new CylinderGeometry(0.036, 0.036, 0.002, 24),
-    lambert(PALETTE.laneSlot),
-  );
-  laneSlot.name = 'Lane Slot';
-  laneSlot.position.set(LANE_X, 0.009, 0.06);
-  content.add(laneSlot);
+  // Three queue slots, nearest first. Tokens are 5.4 cm wide, so 8 cm pitch leaves a 2.6 cm gap.
+  const laneSlots = LANE_SLOT_Z.map((z, i) => {
+    const slot = new Mesh(
+      new CylinderGeometry(0.036, 0.036, 0.002, 24),
+      lambert(PALETTE.laneSlot),
+    );
+    slot.name = `Lane Slot ${i + 1}`;
+    slot.position.set(LANE_X, 0.009, z);
+    content.add(slot);
+    return slot;
+  });
+  const laneSlot = laneSlots[0];
 
   const rail = new Mesh(new BoxGeometry(0.4, 0.003, 0.07), lambert(PALETTE.rail));
   rail.name = 'Advisor Rail';
@@ -223,6 +230,7 @@ export function buildWard(): WardParts {
     virtualTable,
     trays,
     laneSlot,
+    laneSlots,
     plinths,
     recentreButton,
     placementPad,

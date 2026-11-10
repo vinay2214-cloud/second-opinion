@@ -8,12 +8,14 @@ import { Tray } from '../components.js';
 const EDGE_MARGIN = 0.012;
 const MAX_HEIGHT = 0.16;
 const STAMP_SEC = 0.45;
+const TRUTH_SEC = 3;
 const REST_OFFSET_X = 0.034;
 const REST_OFFSET_Z = -0.036;
 
 interface TrayView {
   parts: TrayParts;
   stamp: number; // seconds left of the stamp pulse, 0 = idle
+  truth: number; // seconds left of the truth glow, 0 = idle
 }
 
 export class TraySystem extends createSystem({
@@ -26,7 +28,7 @@ export class TraySystem extends createSystem({
 
   /** Called by bootstrap for each tray entity. */
   addTray(parts: TrayParts): void {
-    this.views.set(parts.zone, { parts, stamp: 0 });
+    this.views.set(parts.zone, { parts, stamp: 0, truth: 0 });
   }
 
   zoneOf(entity: Entity): Zone | '' {
@@ -88,6 +90,14 @@ export class TraySystem extends createSystem({
     }
   }
 
+  /** Truth reveal: this tray's ring holds a slow double pulse. The zone comes from the runtime's resolved event. */
+  showTruth(zone: Zone): void {
+    const view = this.views.get(zone);
+    if (view) {
+      view.truth = TRUTH_SEC;
+    }
+  }
+
   update(delta: number): void {
     for (const view of this.views.values()) {
       const ring = view.parts.ring;
@@ -97,6 +107,12 @@ export class TraySystem extends createSystem({
         const t = 1 - view.stamp / STAMP_SEC;
         ring.scale.setScalar(1 + 0.35 * t);
         material.opacity = 1 - t;
+        continue;
+      }
+      if (view.truth > 0) {
+        view.truth = Math.max(0, view.truth - delta);
+        ring.scale.setScalar(1.12);
+        material.opacity = 0.65 + 0.35 * Math.sin(view.truth * 9); // about 1.4 Hz
         continue;
       }
       ring.scale.setScalar(1);

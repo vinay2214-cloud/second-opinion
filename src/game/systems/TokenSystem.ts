@@ -1,10 +1,11 @@
-// Patient tokens: pinch-grab, release over a tray, snap, return to the lane.
-// Emits a typed TokenIntent. Never calls the runtime and never applies a rule
-// (T06 wires intents to runtime.commit / finalize).
+// Patient tokens: arrive on the lane, pinch-grab, release over a tray, snap.
+// Emits a typed TokenIntent and does what ShiftSystem tells it afterwards.
+// It never calls the runtime and never applies a game rule.
 import {
   createSystem,
   type Entity,
   Grabbed,
+  GrabSystem,
   OneHandGrabbable,
   Vector3,
 } from '@iwsdk/core';
@@ -23,6 +24,7 @@ const PLACED_SCALE = 0.65;
 
 interface TokenView {
   parts: TokenParts;
+  slot: number;
   from: Vector3;
   to: Vector3;
   moveLeft: number; // seconds left of the move, 0 = not moving
@@ -31,6 +33,10 @@ interface TokenView {
   stampZone: Zone | '';
   /** Scale the token is easing towards (1 in lane or hand, PLACED_SCALE on a tray). */
   restScale: number;
+  /** Where the token was before the last tray move, for revert(). '' = lane. */
+  prevZone: Zone | '';
+  /** Resolved: no more input; removed when this reaches 0. -1 = not scheduled. */
+  removeIn: number;
 }
 
 type IntentListener = (intent: TokenIntent) => void;
@@ -41,17 +47,26 @@ export class TokenSystem extends createSystem({
 }) {
   /** Set by bootstrap before registration. */
   static contentEntity: Entity;
-  static laneRest: Vector3;
+  static laneSlots: Vector3[];
+
+  /** Index of the token last held or approached by a hand, -1 if none yet. */
+  lastTouched = -1;
 
   private views = new Map<Entity, TokenView>();
+  private byIndex = new Map<number, Entity>();
+  private slotUsed: boolean[] = [];
   private listeners = new Set<IntentListener>();
   private trays!: TraySystem;
+  private grab!: GrabSystem;
   private world3 = new Vector3();
   private hand = new Vector3();
   private pulse = 0;
+  private doomed: Entity[] = [];
 
   init(): void {
     this.trays = this.world.getSystem(TraySystem) as TraySystem;
+    this.grab = this.world.getSystem(GrabSystem) as GrabSystem;
+    this.slotUsed = TokenSystem.laneSlots.map(() => false);
     this.cleanupFuncs.push(
       this.queries.held.subscribe('qualify', (entity) => this.onGrab(entity)),
       this.queries.held.subscribe('disqualify', (entity) =>
@@ -65,10 +80,25 @@ export class TokenSystem extends createSystem({
     return () => this.listeners.delete(listener);
   }
 
-  /** Put a new token on the arrival lane. */
+  /** Number of tokens currently in a hand. */
+  get heldCount(): number {
+    return this.queries.held.entities.size;
+  }
+
+  isHeld(index: number): boolean {
+    const entity = this.byIndex.get(index);
+    return !!entity && entity.hasComponent(Grabbed);
+  }
+
+  /** Put a new token on the first free lane slot. */
   spawnToken(index: number): Entity {
+    let slot = this.slotUsed.indexOf(false);
+    if (slot < 0) {
+      slot = TokenSystem.laneSlots.length - 1; // lane full: share the last slot
+    }
+    this.slotUsed[slot] = true;
     const parts = buildToken(index);
-    parts.root.position.copy(TokenSystem.laneRest);
+    parts.root.position.copy(TokenSystem.laneSlots[slot]);
     TokenSystem.contentEntity.object3D?.add(parts.root);
     const entity = this.world
       .createTransformEntity(parts.root, { parent: TokenSystem.contentEntity })
@@ -76,6 +106,7 @@ export class TokenSystem extends createSystem({
       .addComponent(OneHandGrabbable, { rotate: false, translate: true });
     this.views.set(entity, {
       parts,
+      slot,
       from: new Vector3(),
       to: new Vector3(),
       moveLeft: 0,
@@ -83,8 +114,39 @@ export class TokenSystem extends createSystem({
       squashLeft: 0,
       stampZone: '',
       restScale: 1,
+      prevZone: '',
+      removeIn: -1,
     });
+    this.byIndex.set(index, entity);
     return entity;
+  }
+
+  /** The last tray move was not accepted: send the token back where it was, silently. */
+  revert(index: number): void {
+    const entity = this.byIndex.get(index);
+    const view = entity && this.views.get(entity);
+    if (!entity || !view) {
+      return;
+    }
+    this.rest(entity, view, view.prevZone, RETURN_SEC);
+  }
+
+  /**
+   * The patient is resolved. The token takes no more input, stands on the tray
+   * of the final call (given by the runtime) and leaves after `seconds`.
+   */
+  retire(index: number, finalZone: Zone, seconds: number): void {
+    const entity = this.byIndex.get(index);
+    const view = entity && this.views.get(entity);
+    if (!entity || !view) {
+      return;
+    }
+    view.removeIn = seconds;
+    if (entity.hasComponent(Grabbed)) {
+      this.grab.forceRelease(entity); // onRelease sees removeIn and stays quiet
+    }
+    entity.setValue(Token, 'state', 'done');
+    this.rest(entity, view, finalZone, RETURN_SEC);
   }
 
   update(delta: number): void {
@@ -97,10 +159,21 @@ export class TokenSystem extends createSystem({
       }
       const root = view.parts.root;
       const held = entity.hasComponent(Grabbed);
-      const hot = !held && this.handNear(root);
+      const done = view.removeIn >= 0;
+      const hot = !held && !done && this.handNear(root);
+      if (held || hot) {
+        this.lastTouched = entity.getValue(Token, 'index') ?? -1;
+      }
       view.parts.outline.visible = hot;
       view.parts.material.emissiveIntensity = hot ? glow : held ? 0.2 : 0;
 
+      if (done) {
+        view.removeIn -= delta;
+        if (view.removeIn <= 0 && !held) {
+          this.doomed.push(entity);
+          continue;
+        }
+      }
       if (held) {
         root.getWorldPosition(this.world3);
         this.trays.setAimed(this.trays.zoneAt(this.world3));
@@ -127,6 +200,20 @@ export class TokenSystem extends createSystem({
         root.scale.set(k * (1 + 0.12 * s), k * (1 - 0.18 * s), k * (1 + 0.12 * s));
       }
     }
+    while (this.doomed.length > 0) {
+      this.remove(this.doomed.pop() as Entity);
+    }
+  }
+
+  private remove(entity: Entity): void {
+    const view = this.views.get(entity);
+    if (view) {
+      this.slotUsed[view.slot] = false;
+      view.parts.root.removeFromParent();
+    }
+    this.byIndex.delete(entity.getValue(Token, 'index') ?? -1);
+    this.views.delete(entity);
+    entity.dispose();
   }
 
   private onGrab(entity: Entity): void {
@@ -152,28 +239,48 @@ export class TokenSystem extends createSystem({
     if (this.queries.held.entities.size === 0) {
       this.trays.setHolding(false);
     }
+    if (view.removeIn >= 0) {
+      return; // resolved while in the hand: retire() already sent it to its tray
+    }
+    const index = entity.getValue(Token, 'index') ?? 0;
+    const current = (entity.getValue(Token, 'zone') ?? '') as Zone | '';
     view.parts.root.getWorldPosition(this.world3);
     const zone = this.trays.zoneAt(this.world3);
-    if (zone && zone === entity.getValue(Token, 'zone')) {
-      // Put back on the tray it came from: nothing changed, so no intent and no stamp.
-      entity.setValue(Token, 'state', 'tray');
+    if (!zone || zone === current) {
+      // Outside every tray, or back on the tray it came from: nothing changed.
+      this.rest(entity, view, current, zone ? SNAP_SEC : RETURN_SEC);
+      console.info(
+        `[token] ${index} ${zone ? `put back on ${zone}, no change` : current ? `released outside trays, back to ${current}` : 'released outside trays, back to lane'}`,
+      );
+      return;
+    }
+    view.prevZone = current;
+    entity.setValue(Token, 'state', 'tray');
+    entity.setValue(Token, 'zone', zone);
+    view.restScale = PLACED_SCALE;
+    this.trays.restPosition(zone, view.to);
+    this.startMove(view, SNAP_SEC, zone);
+    const intent: TokenIntent = { type: 'place', tokenId: index, zone };
+    console.info(`[intent] ${JSON.stringify(intent)}`);
+    for (const listener of this.listeners) {
+      listener(intent);
+    }
+  }
+
+  /** Move to a resting place without stamp or intent: a tray, or the lane slot for ''. */
+  private rest(entity: Entity, view: TokenView, zone: Zone | '', seconds: number): void {
+    entity.setValue(Token, 'zone', zone);
+    if (view.removeIn < 0) {
+      entity.setValue(Token, 'state', zone ? 'tray' : 'lane');
+    }
+    if (zone) {
       view.restScale = PLACED_SCALE;
       this.trays.restPosition(zone, view.to);
-      this.startMove(view, view.to, SNAP_SEC, '');
-      console.info(
-        `[token] ${entity.getValue(Token, 'index')} put back on ${zone}, no change`,
-      );
-    } else if (zone) {
-      this.moveToTray(entity, view, zone, SNAP_SEC);
     } else {
-      entity.setValue(Token, 'state', 'lane');
-      entity.setValue(Token, 'zone', '');
       view.restScale = 1;
-      this.startMove(view, TokenSystem.laneRest, RETURN_SEC, '');
-      console.info(
-        `[token] ${entity.getValue(Token, 'index')} released outside trays, back to lane`,
-      );
+      view.to.copy(TokenSystem.laneSlots[view.slot]);
     }
+    this.startMove(view, seconds, '');
   }
 
   /** True when either tracked hand (or controller grip) is close to the token. */
@@ -186,39 +293,9 @@ export class TokenSystem extends createSystem({
     );
   }
 
-  private moveToTray(
-    entity: Entity,
-    view: TokenView,
-    zone: Zone,
-    seconds: number,
-  ): void {
-    entity.setValue(Token, 'state', 'tray');
-    entity.setValue(Token, 'zone', zone);
-    view.restScale = PLACED_SCALE;
-    this.trays.restPosition(zone, view.to);
+  /** Start easing from the current position to `view.to`. */
+  private startMove(view: TokenView, seconds: number, stampZone: Zone | ''): void {
     view.from.copy(view.parts.root.position);
-    view.moveTotal = seconds;
-    view.moveLeft = seconds;
-    view.stampZone = zone;
-    const intent: TokenIntent = {
-      type: 'place',
-      tokenId: entity.getValue(Token, 'index') ?? 0,
-      zone,
-    };
-    console.info(`[intent] ${JSON.stringify(intent)}`);
-    for (const listener of this.listeners) {
-      listener(intent);
-    }
-  }
-
-  private startMove(
-    view: TokenView,
-    target: Vector3,
-    seconds: number,
-    stampZone: Zone | '',
-  ): void {
-    view.from.copy(view.parts.root.position);
-    view.to.copy(target);
     view.moveTotal = seconds;
     view.moveLeft = seconds;
     view.stampZone = stampZone;

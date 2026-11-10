@@ -3,7 +3,7 @@
 import { createComponent, Types } from '@iwsdk/core';
 import type { Zone } from '../scene/config.js';
 
-/** A patient token. `state` is 'lane' | 'held' | 'tray'; `zone` is set while on a tray. */
+/** A patient token. `state` is 'lane' | 'held' | 'tray' | 'done'; `zone` is set while on a tray. */
 export const Token = createComponent('Token', {
   index: { type: Types.Int32, default: 0 },
   state: { type: Types.String, default: 'lane' },
@@ -21,3 +21,8 @@ export interface TokenIntent {
   tokenId: number;
   zone: Zone;
 }
+
+/** The vitals card. Poke (or pinch-ray) toggles the expanded view. */
+export const VitalsCard = createComponent('VitalsCard', {});
+/** Keep button: confirms the committed call. */
+export const KeepButton = createComponent('KeepButton', {});
