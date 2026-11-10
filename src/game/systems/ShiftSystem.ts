@@ -4,7 +4,7 @@
 // reliance label. Advice is drawn only after commit() succeeded and the 0.6 s
 // hold passed, and never while an uncommitted token is in a hand.
 import { createSystem, Pressed, VisibilityState } from '@iwsdk/core';
-import { advisorData, loadCases } from '../../core/data.js';
+import { advisorData, loadCases, shiftConfig } from '../../core/data.js';
 import {
   buildShift,
   createShiftRuntime,
@@ -197,7 +197,8 @@ export class ShiftSystem extends createSystem({
         this.resultLines = [
           {
             text: event.missed
-              ? `Too slow: auto-Amber, ${signed(event.delta)}.`
+              ? // Penalty text straight from data/shift-config.json; the patient's total is the runtime's delta.
+                `Too slow: auto-Amber, ${signed(shiftConfig.scoring.missedWindowPenalty)}. Patient ${i + 1}: ${signed(event.delta)}`
               : `Patient ${i + 1}: ${signed(event.delta)}`,
             bold: true,
             em: 0.02,

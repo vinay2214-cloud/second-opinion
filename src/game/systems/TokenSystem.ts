@@ -62,6 +62,8 @@ export class TokenSystem extends createSystem({
   private hand = new Vector3();
   private pulse = 0;
   private doomed: Entity[] = [];
+  /** Count of releases handled, shown in the log so identical lines stay distinct. */
+  private releases = 0;
 
   init(): void {
     this.trays = this.world.getSystem(TraySystem) as TraySystem;
@@ -243,6 +245,7 @@ export class TokenSystem extends createSystem({
       return; // resolved while in the hand: retire() already sent it to its tray
     }
     const index = entity.getValue(Token, 'index') ?? 0;
+    this.releases += 1;
     const current = (entity.getValue(Token, 'zone') ?? '') as Zone | '';
     view.parts.root.getWorldPosition(this.world3);
     const zone = this.trays.zoneAt(this.world3);
@@ -250,7 +253,7 @@ export class TokenSystem extends createSystem({
       // Outside every tray, or back on the tray it came from: nothing changed.
       this.rest(entity, view, current, zone ? SNAP_SEC : RETURN_SEC);
       console.info(
-        `[token] ${index} ${zone ? `put back on ${zone}, no change` : current ? `released outside trays, back to ${current}` : 'released outside trays, back to lane'}`,
+        `[token] ${index} ${zone ? `put back on ${zone}, no change` : current ? `released outside trays, back to ${current}` : 'released outside trays, back to lane'} (release ${this.releases})`,
       );
       return;
     }
@@ -261,7 +264,7 @@ export class TokenSystem extends createSystem({
     this.trays.restPosition(zone, view.to);
     this.startMove(view, SNAP_SEC, zone);
     const intent: TokenIntent = { type: 'place', tokenId: index, zone };
-    console.info(`[intent] ${JSON.stringify(intent)}`);
+    console.info(`[intent] ${JSON.stringify(intent)} (release ${this.releases})`);
     for (const listener of this.listeners) {
       listener(intent);
     }
