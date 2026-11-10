@@ -6,6 +6,7 @@ export const PALETTE = {
   rail: 0x23395b,
   plinth: 0x4a6fa5,
   advisor: 0x9db4d6,
+  advisorOff: 0x4b5568,
   trayBase: 0x101a2b,
   table: 0x6f7f95,
   button: 0x33507f,

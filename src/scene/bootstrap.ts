@@ -2,19 +2,32 @@
 // and systems. src/index.ts calls this once; later cards extend it here.
 import {
   type Entity,
+  type Mesh,
+  type MeshLambertMaterial,
   Vector3,
   PokeInteractable,
   RayInteractable,
   type World,
 } from '@iwsdk/core';
-import { KeepButton, Token, Tray, VitalsCard } from '../game/components.js';
-import { ShiftSystem } from '../game/systems/ShiftSystem.js';
+import {
+  AdvisorPlinth,
+  KeepButton,
+  PauseButton,
+  StartButton,
+  Token,
+  Tray,
+  VitalsCard,
+} from '../game/components.js';
+import { type PlinthView, ShiftSystem } from '../game/systems/ShiftSystem.js';
 import { PlacementSystem } from '../game/systems/PlacementSystem.js';
 import { TokenSystem } from '../game/systems/TokenSystem.js';
 import { TraySystem } from '../game/systems/TraySystem.js';
 import { PlacementPad, RecentreButton } from './components.js';
 import { buildShiftUi } from './shiftUi.js';
 import { buildWard, type WardParts } from './ward.js';
+
+/** Plinth order on the rail, left to right. Advisor ids from src/core; Echo is a stretch goal. */
+const PLINTH_ADVISORS = ['dash', 'sage', 'ledger', 'orator'] as const;
 
 export interface WardRuntime {
   parts: WardParts;
@@ -64,24 +77,41 @@ export function bootstrapWard(world: World): WardRuntime {
   );
   world.registerSystem(TokenSystem);
 
-  // Shift furniture and the runtime adapter (T06). Tokens now arrive from the runtime.
+  // Shift furniture and the runtime adapter (T06, T07). Tokens arrive from the runtime.
   const ui = buildShiftUi();
-  world.registerComponent(VitalsCard).registerComponent(KeepButton);
+  world
+    .registerComponent(VitalsCard)
+    .registerComponent(KeepButton)
+    .registerComponent(AdvisorPlinth)
+    .registerComponent(StartButton)
+    .registerComponent(PauseButton);
   for (const panel of [ui.speech, ui.debrief]) {
     parts.content.add(panel.mesh);
     world.createTransformEntity(panel.mesh, { parent: contentEntity });
   }
-  parts.content.add(ui.card.mesh, ui.keepButton);
-  world
-    .createTransformEntity(ui.card.mesh, { parent: contentEntity })
-    .addComponent(VitalsCard)
-    .addComponent(RayInteractable)
-    .addComponent(PokeInteractable);
-  world
-    .createTransformEntity(ui.keepButton, { parent: contentEntity })
-    .addComponent(KeepButton)
-    .addComponent(RayInteractable)
-    .addComponent(PokeInteractable);
+  parts.content.add(ui.card.mesh, ui.keep.root, ui.start.root, ui.pause.root);
+  const pokeable = (object: Parameters<World['createTransformEntity']>[0]) =>
+    world
+      .createTransformEntity(object, { parent: contentEntity })
+      .addComponent(RayInteractable)
+      .addComponent(PokeInteractable);
+  pokeable(ui.card.mesh).addComponent(VitalsCard);
+  pokeable(ui.keep.root).addComponent(KeepButton);
+  pokeable(ui.pause.root).addComponent(PauseButton);
+  // Start is made interactable by ShiftSystem only while shown.
+  ShiftSystem.startEntity = world
+    .createTransformEntity(ui.start.root, { parent: contentEntity })
+    .addComponent(StartButton);
+  ShiftSystem.plinths = parts.plinths.map((plinth, index): PlinthView => {
+    const advisorId = PLINTH_ADVISORS[index];
+    const [stand, body] = plinth.children as Mesh[];
+    return {
+      entity: pokeable(plinth).addComponent(AdvisorPlinth, { advisorId }),
+      advisorId,
+      stand: stand.material as MeshLambertMaterial,
+      body: body.material as MeshLambertMaterial,
+    };
+  });
   ShiftSystem.ui = ui;
   world.registerSystem(ShiftSystem);
   return runtime;

@@ -24,5 +24,13 @@ export interface TokenIntent {
 
 /** The vitals card. Poke (or pinch-ray) toggles the expanded view. */
 export const VitalsCard = createComponent('VitalsCard', {});
+/** An advisor plinth. Poke it to ask that advisor for a second opinion. */
+export const AdvisorPlinth = createComponent('AdvisorPlinth', {
+  advisorId: { type: Types.String, default: '' },
+});
+/** Start shift button (shown before the first patient). */
+export const StartButton = createComponent('StartButton', {});
+/** Pause / Resume button on the table edge. */
+export const PauseButton = createComponent('PauseButton', {});
 /** Keep button: confirms the committed call. */
 export const KeepButton = createComponent('KeepButton', {});

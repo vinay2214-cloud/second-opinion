@@ -49,6 +49,9 @@ export class TokenSystem extends createSystem({
   static contentEntity: Entity;
   static laneSlots: Vector3[];
 
+  /** Number of pickups so far (any token). */
+  grabs = 0;
+
   /** Index of the token last held or approached by a hand, -1 if none yet. */
   lastTouched = -1;
 
@@ -229,6 +232,7 @@ export class TokenSystem extends createSystem({
     view.restScale = 1;
     view.parts.root.scale.set(1, 1, 1);
     entity.setValue(Token, 'state', 'held');
+    this.grabs += 1;
     this.trays.setHolding(true);
   }
 
