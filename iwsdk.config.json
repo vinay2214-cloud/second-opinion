@@ -1,13 +1,7 @@
 {
   "$schema": "./node_modules/@iwsdk/core/dist/schemas/iwsdk-project.v1.schema.json",
   "version": "iwsdk.project.v1",
-  "scene": "./public/scenes/main.iwsdk.scene.json",
-  "assets": {
-    "module": "./src/assets"
-  },
-  "components": {
-    "module": "./src/components"
-  },
+  "scene": "./public/scenes/ward.iwsdk.scene.json",
   "world": {
     "xr": {
       "mode": "ar",
@@ -29,13 +23,13 @@
       "camera": {
         "position": [
           0,
-          1.6,
-          1
+          1.2,
+          0
         ],
         "lookAt": [
           0,
-          0.95,
-          -1.95
+          0.8,
+          -0.42
         ]
       }
     },
