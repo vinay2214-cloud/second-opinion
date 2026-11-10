@@ -208,6 +208,14 @@ export function buildWard(): WardParts {
   placementPad.name = 'Placement Pad';
   placementPad.position.y = 0.002;
   placementPad.visible = false;
+  const padPrompt = createFlatLabel('Pinch the pad to place your ward.', {
+    width: 0.44,
+    height: 0.04,
+    color: '#ffffff',
+    background: '#10202b',
+  });
+  padPrompt.position.set(0, 0.004, 0.06);
+  placementPad.add(padPrompt);
 
   return {
     root,
