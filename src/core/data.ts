@@ -18,8 +18,9 @@ export const advisorData = advisorJson as Omit<typeof advisorJson, 'categories' 
   categories: Category[];
   advisors: Record<AdvisorId, Advisor>;
 };
-export const shiftConfig = shiftJson as Omit<typeof shiftJson, 'lineups'> & {
+export const shiftConfig = shiftJson as Omit<typeof shiftJson, 'lineups' | 'modules'> & {
   lineups: Record<ModuleId, AdvisorId[]>;
+  modules: Record<ModuleId, { driftEnabled: boolean; tokens: number | null; patients: number; surgeIndices: number[] }>;
 };
 export const caseTemplates = templatesJson as Omit<typeof templatesJson, 'categories'> & {
   categories: Record<Category, CategoryConfig>;

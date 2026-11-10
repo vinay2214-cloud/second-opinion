@@ -6,6 +6,8 @@ import { generateCases } from '../src/core/generator.js';
 import { validateCases } from '../src/core/validate.js';
 import { classifyReliance, calibrationIndex, trustMap } from '../src/core/reliance.js';
 import { outcomeScore, shiftScore, speedBonus, verifyYield } from '../src/core/scoring.js';
+import { buildShift, dailySeed } from '../src/core/shift-director.js';
+import { buildDebrief } from '../src/core/debrief.js';
 import type { AdvisorId, Category, DebriefEntry, Drift, Reliance, Zone } from '../src/core/types.js';
 import { loadCases, advisorData, shiftConfig } from '../src/core/data.js';
 const POOL = loadCases();
@@ -147,6 +149,107 @@ test('validator: catches a tampered truth zone and an implausible complaint', ()
   const i = hot.findIndex((c) => c.complaint.startsWith('Fever and shaking'));
   hot[i].vitals.temp = 36.5;
   assert.ok(validateCases(hot).length > 0);
+});
+
+test('shift director: module 3 shift shape, quotas, determinism, timing', () => {
+  const a = buildShift({ seed: 'daily-2026-11-18', cases: POOL, module: 'module3' });
+  const b = buildShift({ seed: 'daily-2026-11-18', cases: POOL, module: 'module3' });
+  assert.deepEqual(a, b);
+  assert.strictEqual(a.patients.length, 14);
+  const zones = a.patients.reduce((m, p) => ({ ...m, [p.case.truthZone]: (m[p.case.truthZone] ?? 0) + 1 }), {} as Record<string, number>);
+  assert.deepEqual(zones, { green: 4, amber: 6, red: 4 });
+  assert.ok(new Set(a.patients.map((p) => p.case.category)).size >= 4);
+  assert.strictEqual(new Set(a.patients.map((p) => p.caseId)).size, 14);
+  for (let i = 1; i < 14; i++) assert.ok(a.patients[i].arrivalSec > a.patients[i - 1].arrivalSec);
+  assert.ok(a.estimatedEndSec <= a.hardCapSeconds, `estimated end ${a.estimatedEndSec}s must fit the hard cap`);
+  assert.ok(a.estimatedEndSec >= 360, 'shift should feel like roughly 6 to 8 minutes');
+  assert.ok(a.patients.slice(0, 3).every((p) => p.case.difficulty <= 2), 'ramp: no borderline cases first');
+  assert.strictEqual(a.tokens, 4);
+  assert.deepEqual(a.lineup, ['dash', 'sage', 'ledger', 'orator']);
+  const leads = a.patients.reduce((m, p) => ({ ...m, [p.leadAdvisor]: (m[p.leadAdvisor] ?? 0) + 1 }), {} as Record<string, number>);
+  assert.ok(Object.values(leads).every((n) => n >= 2));
+  assert.ok(a.patients.every((p) => Object.keys(p.advice).length === 4));
+});
+
+test('shift director: every seed fits the hard cap and averages about 7 minutes', () => {
+  const ends = [];
+  for (let i = 0; i < 100; i++) ends.push(buildShift({ seed: `cap-${i}`, cases: POOL, module: 'module3' }).estimatedEndSec);
+  assert.ok(Math.max(...ends) <= shiftConfig.shift.hardCapSeconds, `max end ${Math.max(...ends)}s exceeds hard cap`);
+  const avg = ends.reduce((a, b) => a + b, 0) / ends.length;
+  assert.ok(avg >= 390 && avg <= 450, `average ${avg}s should be roughly 7 minutes`);
+});
+
+test('shift director: drift exists in module 3, hits a strong advisor, affects >= 1 later patient; none in modules 1 and 2', () => {
+  for (let d = 1; d <= 12; d++) {
+    const s = buildShift({ seed: `daily-2026-11-${String(d).padStart(2, '0')}`, cases: POOL, module: 'module3' });
+    assert.ok(s.drift, `drift missing for day ${d}`);
+    const drift = s.drift;
+    assert.strictEqual(s.drift.atIndex, 8);
+    assert.ok(advisorData.advisors[s.drift.advisorId].reliability[s.drift.category as Category] >= 0.85);
+    const hit = s.patients.filter((p) => p.index >= 8 && p.leadAdvisor === drift.advisorId && p.case.category === drift.category);
+    assert.ok(hit.length >= 1);
+  }
+  assert.strictEqual(buildShift({ seed: 'x', cases: POOL, module: 'module1' }).drift, null);
+  assert.strictEqual(buildShift({ seed: 'x', cases: POOL, module: 'module2' }).drift, null);
+  assert.strictEqual(buildShift({ seed: 'x', cases: POOL, module: 'module1' }).patients.length, 6);
+  assert.strictEqual(buildShift({ seed: 'x', cases: POOL, module: 'module2' }).patients.length, 10);
+});
+
+test('shift director: surge pairs get shorter windows and tight arrivals', () => {
+  const s = buildShift({ seed: 'surge', cases: POOL, module: 'module3' });
+  for (const i of shiftConfig.shift.surgeIndices) {
+    assert.strictEqual(s.patients[i].arrivalSec - s.patients[i - 1].arrivalSec, shiftConfig.shift.surgeGapSeconds);
+    assert.strictEqual(s.patients[i].windowSec, shiftConfig.shift.surgeWindowSeconds);
+    assert.strictEqual(s.patients[i - 1].windowSec, shiftConfig.shift.surgeWindowSeconds);
+    assert.ok(s.patients[i].surge && s.patients[i - 1].surge);
+  }
+});
+
+test('dailySeed: local date string', () => {
+  assert.strictEqual(dailySeed(new Date(2026, 10, 18)), 'daily-2026-11-18');
+});
+
+test('debrief: over-reliance on one advisor is named', () => {
+  const entries = [0, 1, 2, 3].map((i) => entry({ index: i, category: 'children', advisorId: 'dash', commit: 'red', advice: 'amber', final: 'amber', truth: 'red' }));
+  const d = buildDebrief({ entries, advisorNames: { dash: 'Dash' } });
+  assert.strictEqual(d.headlineKey, 'overReliance');
+  assert.strictEqual(d.index, 0);
+  assert.ok(d.findings[0].includes('Dash') && d.findings[0].includes('children'));
+});
+
+test('debrief: balanced shift', () => {
+  const entries = [
+    entry({ commit: 'amber', advice: 'red', final: 'red', truth: 'red' }),
+    entry({ commit: 'red', advice: 'amber', final: 'red', truth: 'red' }),
+    entry({ commit: 'green', advice: 'amber', final: 'amber', truth: 'amber' }),
+    entry({ commit: 'amber', advice: 'green', final: 'amber', truth: 'amber' }),
+  ];
+  const d = buildDebrief({ entries });
+  assert.strictEqual(d.index, 100);
+  assert.strictEqual(d.headlineKey, 'balanced');
+});
+
+test('debrief: not enough disagreements', () => {
+  const d = buildDebrief({ entries: [entry({ commit: 'red', advice: 'red', final: 'red' })] });
+  assert.strictEqual(d.headlineKey, 'notEnough');
+  assert.strictEqual(d.index, null);
+});
+
+test('debrief: drift detected vs missed', () => {
+  const shift = { drift: { advisorId: 'dash', category: 'cardiac', atIndex: 8 } } as const;
+  const wrongAdvice = (idx: number, final: Zone) => entry({ index: idx, commit: 'red', advice: 'amber', final, truth: 'red' });
+  const missed = buildDebrief({ entries: [wrongAdvice(9, 'amber'), wrongAdvice(10, 'amber')], shift });
+  assert.strictEqual(missed.drift!.detected, false);
+  assert.ok(missed.findings.some((f) => f.includes('changed mid-shift')));
+  const detected = buildDebrief({ entries: [wrongAdvice(9, 'red'), wrongAdvice(10, 'red')], shift });
+  assert.strictEqual(detected.drift!.detected, true);
+});
+
+test('debrief: pressure line when surge accuracy drops', () => {
+  const calm = [0, 1, 2, 3].map((i) => entry({ index: i, commit: 'amber', advice: 'red', final: 'red', truth: 'red', surge: false }));
+  const surge = [4, 5, 6, 7].map((i) => entry({ index: i, commit: 'amber', advice: 'red', final: 'amber', truth: 'red', surge: true }));
+  const d = buildDebrief({ entries: [...calm, ...surge] });
+  assert.ok(d.findings.some((f) => f.includes('surge')));
 });
 
 test('trust map: follow rate and advice accuracy per advisor and category', () => {
