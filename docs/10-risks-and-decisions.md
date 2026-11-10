@@ -73,3 +73,11 @@ Broke or unknown: __
 Decisions: __
 Tomorrow: __
 ```
+
+```
+Date: Tue 10 Nov 2026   Tag: d0
+Done: T01 scaffold (IWSDK 1.1.0-rc.2, AR template) merged into the kit folder. S1 PASS (dev server, command channel, screenshot, console). S2 PASS (Grabbed tag qualify/disqualify, 3 of 3 trials with emulated hands). core-spec 40 of 40.
+Broke or unknown: S7 PARTIAL. Build loads from a /second-opinion/ subpath in a fresh profile locally, but the GitHub repo does not exist so the real Pages URL is untested. One day behind plan.
+Decisions: kept Vite base './' (works at any subpath). Removed @meta-quest/metavr (needs a USB headset, collects usage data). npm "latest" is 1.1.0-rc.2, there is no 1.0 tag; versions pinned.
+Tomorrow: finish S7 once the repo exists. T03 ward and placement, T04 token grab and tray snap. Astra can start T02 now.
+```
