@@ -18,6 +18,8 @@ const SQUASH_SEC = 0.14;
 const RETURN_SEC = 0.22;
 /** A hand this close to a waiting token lights its outline ("near" feedback). */
 const NEAR_M = 0.12;
+/** A token parked on a tray shrinks so it does not hide the tray's shape. Still 3.5 cm wide. */
+const PLACED_SCALE = 0.65;
 
 interface TokenView {
   parts: TokenParts;
@@ -27,6 +29,8 @@ interface TokenView {
   moveTotal: number;
   squashLeft: number;
   stampZone: Zone | '';
+  /** Scale the token is easing towards (1 in lane or hand, PLACED_SCALE on a tray). */
+  restScale: number;
 }
 
 type IntentListener = (intent: TokenIntent) => void;
@@ -78,6 +82,7 @@ export class TokenSystem extends createSystem({
       moveTotal: 0,
       squashLeft: 0,
       stampZone: '',
+      restScale: 1,
     });
     return entity;
   }
@@ -106,6 +111,9 @@ export class TokenSystem extends createSystem({
         const t = 1 - view.moveLeft / view.moveTotal;
         const eased = 1 - (1 - t) * (1 - t) * (1 - t);
         root.position.lerpVectors(view.from, view.to, eased);
+        root.scale.setScalar(
+          root.scale.x + (view.restScale - root.scale.x) * eased,
+        );
         if (view.moveLeft === 0 && view.stampZone) {
           // Landed: stamp. Visual twin = tray ring pulse + token squash.
           this.trays.stamp(view.stampZone);
@@ -115,7 +123,8 @@ export class TokenSystem extends createSystem({
       } else if (view.squashLeft > 0) {
         view.squashLeft = Math.max(0, view.squashLeft - delta);
         const s = Math.sin((1 - view.squashLeft / SQUASH_SEC) * Math.PI);
-        root.scale.set(1 + 0.12 * s, 1 - 0.18 * s, 1 + 0.12 * s);
+        const k = view.restScale;
+        root.scale.set(k * (1 + 0.12 * s), k * (1 - 0.18 * s), k * (1 + 0.12 * s));
       }
     }
   }
@@ -128,6 +137,7 @@ export class TokenSystem extends createSystem({
     view.moveLeft = 0;
     view.squashLeft = 0;
     view.stampZone = '';
+    view.restScale = 1;
     view.parts.root.scale.set(1, 1, 1);
     entity.setValue(Token, 'state', 'held');
     this.trays.setHolding(true);
@@ -144,11 +154,21 @@ export class TokenSystem extends createSystem({
     }
     view.parts.root.getWorldPosition(this.world3);
     const zone = this.trays.zoneAt(this.world3);
-    if (zone) {
+    if (zone && zone === entity.getValue(Token, 'zone')) {
+      // Put back on the tray it came from: nothing changed, so no intent and no stamp.
+      entity.setValue(Token, 'state', 'tray');
+      view.restScale = PLACED_SCALE;
+      this.trays.restPosition(zone, view.to);
+      this.startMove(view, view.to, SNAP_SEC, '');
+      console.info(
+        `[token] ${entity.getValue(Token, 'index')} put back on ${zone}, no change`,
+      );
+    } else if (zone) {
       this.moveToTray(entity, view, zone, SNAP_SEC);
     } else {
       entity.setValue(Token, 'state', 'lane');
       entity.setValue(Token, 'zone', '');
+      view.restScale = 1;
       this.startMove(view, TokenSystem.laneRest, RETURN_SEC, '');
       console.info(
         `[token] ${entity.getValue(Token, 'index')} released outside trays, back to lane`,
@@ -174,6 +194,7 @@ export class TokenSystem extends createSystem({
   ): void {
     entity.setValue(Token, 'state', 'tray');
     entity.setValue(Token, 'zone', zone);
+    view.restScale = PLACED_SCALE;
     this.trays.restPosition(zone, view.to);
     view.from.copy(view.parts.root.position);
     view.moveTotal = seconds;

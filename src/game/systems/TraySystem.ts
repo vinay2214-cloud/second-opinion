@@ -8,6 +8,8 @@ import { Tray } from '../components.js';
 const EDGE_MARGIN = 0.012;
 const MAX_HEIGHT = 0.16;
 const STAMP_SEC = 0.45;
+const REST_OFFSET_X = 0.034;
+const REST_OFFSET_Z = -0.036;
 
 interface TrayView {
   parts: TrayParts;
@@ -50,12 +52,17 @@ export class TraySystem extends createSystem({
     return '';
   }
 
-  /** Tray centre in the ward content frame (where a snapped token stands). */
+  /**
+   * Where a snapped token stands, in the ward content frame: the back-right
+   * corner of the tray, so the tray's shape and text label stay visible.
+   */
   restPosition(zone: Zone, out: Vector3): Vector3 {
     const view = this.views.get(zone);
     if (view) {
       out.copy(view.parts.root.position);
+      out.x += REST_OFFSET_X;
       out.y += 0.013;
+      out.z += REST_OFFSET_Z;
     }
     return out;
   }
