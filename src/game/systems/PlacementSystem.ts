@@ -5,7 +5,9 @@ import {
   createSystem,
   type Entity,
   type Object3D,
+  PokeInteractable,
   Pressed,
+  RayInteractable,
   Quaternion,
   Vector3,
   Visibility,
@@ -65,11 +67,15 @@ export class PlacementSystem extends createSystem({
     this.contentEntity = runtime.contentEntity;
     this.padEntity = runtime.padEntity;
 
+    // Act when the pinch or poke is let go, not when it starts. Hiding a target
+    // while a hand is still pressing it left that hand unable to grab afterwards.
     this.cleanupFuncs.push(
-      this.queries.padPressed.subscribe('qualify', () => {
-        this.confirmRequested = true;
+      this.queries.padPressed.subscribe('disqualify', () => {
+        if (this.phase === 'confirming') {
+          this.confirmRequested = true;
+        }
       }),
-      this.queries.recentrePressed.subscribe('qualify', () => {
+      this.queries.recentrePressed.subscribe('disqualify', () => {
         this.recentreRequested = true;
       }),
     );
@@ -116,7 +122,7 @@ export class PlacementSystem extends createSystem({
         this.setWorldPose(this.best);
         this.phase = 'confirming';
         this.elapsed = 0;
-        this.padEntity.setValue(Visibility, 'isVisible', true);
+        this.setPadActive(true);
         console.info('[placement] plane found, waiting for confirm');
       } else if (this.elapsed >= PLACEMENT.planeTimeoutSec) {
         this.placeVirtual('timeout');
@@ -134,13 +140,36 @@ export class PlacementSystem extends createSystem({
     }
   }
 
+  /**
+   * The pad covers the whole ward. It must only take pointer input while it is
+   * shown, otherwise it swallows grabs and presses meant for tokens and trays.
+   */
+  private setPadActive(active: boolean): void {
+    this.padEntity.setValue(Visibility, 'isVisible', active);
+    if (active) {
+      if (!this.padEntity.hasComponent(RayInteractable)) {
+        this.padEntity.addComponent(RayInteractable);
+      }
+      if (!this.padEntity.hasComponent(PokeInteractable)) {
+        this.padEntity.addComponent(PokeInteractable);
+      }
+    } else {
+      if (this.padEntity.hasComponent(RayInteractable)) {
+        this.padEntity.removeComponent(RayInteractable);
+      }
+      if (this.padEntity.hasComponent(PokeInteractable)) {
+        this.padEntity.removeComponent(PokeInteractable);
+      }
+    }
+  }
+
   private beginSearch(): void {
     this.phase = 'searching';
     this.elapsed = 0;
     this.pulse = 0;
     this.confirmRequested = false;
     this.contentEntity.setValue(Visibility, 'isVisible', false);
-    this.padEntity.setValue(Visibility, 'isVisible', false);
+    this.setPadActive(false);
   }
 
   private placeVirtual(reason: string): void {
@@ -158,7 +187,7 @@ export class PlacementSystem extends createSystem({
     this.phase = 'placed';
     this.confirmRequested = false;
     this.parts.virtualTable.visible = mode === 'virtual';
-    this.padEntity.setValue(Visibility, 'isVisible', false);
+    this.setPadActive(false);
     this.contentEntity.setValue(Visibility, 'isVisible', true);
     if (this.immersive && !this.wardEntity.hasComponent(XRAnchor)) {
       // SceneUnderstandingSystem attaches the ward to its world-anchored group.
