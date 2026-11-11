@@ -17,6 +17,7 @@ import {
 import { access, type ToggleKey } from '../../access/access.js';
 import type { GhostHand } from '../../access/ghostHand.js';
 import { Tutorial } from '../../access/Tutorial.js';
+import { playCue, setAudioContextProvider } from '../../audio/cues.js';
 import { askCoach } from '../../coach/coachClient.js';
 import { COACH_AVAILABLE } from '../../coach/config.js';
 import { buildCoachFacts, type CoachAdvisor, type CoachText, coachFallback } from '../../core/coach.js';
@@ -200,6 +201,9 @@ export class ShiftSystem extends createSystem({
   private notice = '';
   private noticeUntil = 0;
   private names: Partial<Record<AdvisorId, string>> = {};
+  /** Calm as the running shift was created (surge cue is silent in calm mode). */
+  private shiftCalm = false;
+  private adviceCued = new Set<number>();
   /**
    * Optional AI coach (T17). `coach` stays null unless a proxy URL was built in,
    * and then nothing below runs. A request is sent only from askTheCoach(), which
@@ -241,8 +245,16 @@ export class ShiftSystem extends createSystem({
       up(this.ui.keep.root.position, 0.016),
       up(this.ui.card.mesh.position, 0.02),
     );
+    // Sound (T10): use the framework listener's audio context, which is resumed
+    // on XR entry (spikes/S6.md). Looked up when a cue plays, never per frame.
+    setAudioContextProvider(() => {
+      const listener = this.player.head.children.find((c) => c.type === 'AudioListener') as
+        | { context?: AudioContext }
+        | undefined;
+      return listener?.context ?? null;
+    });
     console.info(
-      `[shift] ready seed=${this.seed} speed=${this.speed} settings=${JSON.stringify(access.settings)} tutorial=${access.tutorialOn}`,
+      `[shift] ready sound=${access.soundOn} seed=${this.seed} speed=${this.speed} settings=${JSON.stringify(access.settings)} tutorial=${access.tutorialOn}`,
     );
 
     // Act on release, not on press: changing a target under a pressing hand
@@ -512,7 +524,7 @@ export class ShiftSystem extends createSystem({
       { text: 'Contrast: black panels, white outlines.', em },
       { text: 'Calm: slower arrivals, longer windows.', em },
       { text: 'Big text: larger panels.', em },
-      { text: 'One hand is enough for every action. Sound is off.', em, color: '#9ec1ff' },
+      { text: 'Sound: five quiet cues. One hand is enough for everything.', em, color: '#9ec1ff' },
       { text: 'Poke Done to go back.', em, color: ACCENT },
     ];
     if (this.notice !== '' && this.clock < this.noticeUntil) {
@@ -720,6 +732,8 @@ export class ShiftSystem extends createSystem({
       }
     }
     const calm = access.settings.calm;
+    this.shiftCalm = calm;
+    this.adviceCued.clear();
     this.runtime = createShiftRuntime({ shift: this.shift, advisorNames: this.names, calm });
     this.started = true;
     this.tutorial.stop();
@@ -763,6 +777,7 @@ export class ShiftSystem extends createSystem({
       `[shift] verify ${i} ${advisorId} ok=${result.ok} tokens=${this.runtime.tokens} clock ${before.toFixed(2)}s -> ${after.toFixed(2)}s`,
     );
     if (result.ok) {
+      this.cue('verify');
       this.showNotice(
         `Second opinion: 1 token spent, clock +${shiftConfig.verify.clockCostSeconds} s.`,
       );
@@ -790,6 +805,7 @@ export class ShiftSystem extends createSystem({
         `[shift] commit ${i} ${intent.zone} ok=${result.ok}${result.ok ? ` lead=${result.lead.advisorId}` : ''}`,
       );
       if (result.ok) {
+        this.cue('stamp');
         this.stage.set(i, 'committed');
         this.commitZone.set(i, intent.zone);
         this.lead.set(i, result.lead);
@@ -815,6 +831,9 @@ export class ShiftSystem extends createSystem({
         this.stage.set(event.index, 'arrived');
         this.tokens.spawnToken(event.index);
         const surge = this.runtime.publicView(event.index).surge;
+        if (surge && !this.shiftCalm) {
+          this.cue('surge'); // calm mode: surges are silent
+        }
         console.info(
           `[shift] arrive ${event.index}${surge ? ' surge' : ''} t=${this.runtime.elapsedSec(this.now()).toFixed(1)}s`,
         );
@@ -838,6 +857,8 @@ export class ShiftSystem extends createSystem({
     // Where the token ends up is the runtime's logged final call.
     const entry = this.runtime.log().find((e) => e.index === i);
     this.tokens.retire(i, entry?.final ?? event.truth, TOKEN_LEAVE_SEC);
+    // Which of the two result cues: the runtime's logged final call against its truth.
+    this.cue(!event.missed && entry?.final === event.truth ? 'resultRight' : 'resultWrong');
     this.trays.showTruth(event.truth);
     this.resultAt = this.clock;
     this.resultGrabs = this.tokens.grabs;
@@ -960,6 +981,10 @@ export class ShiftSystem extends createSystem({
       !uncommittedInHand &&
       this.clock >= (this.revealAt.get(i) ?? Infinity);
     this.adviceVisible = adviceShown;
+    if (adviceShown && !this.adviceCued.has(i)) {
+      this.adviceCued.add(i); // once, when a patient's advice first appears
+      this.cue('advice');
+    }
     this.setKeep(adviceShown && !this.blocked);
     const view = stage !== undefined ? this.runtime.publicView(i) : null;
     const verified = adviceShown && view?.verified ? view.verified : [];
@@ -1095,6 +1120,12 @@ export class ShiftSystem extends createSystem({
     }
     const all = [hud, ...body];
     this.ui.speech.set(all.map((l) => l.text).join('|'), all);
+  }
+
+  /** One of the five sound cues. Its visual twin is drawn elsewhere, sound or not. */
+  private cue(name: Parameters<typeof playCue>[0]): void {
+    const played = playCue(name);
+    console.info(`[audio] ${name} played=${played}`);
   }
 
   private highlightPlinths(lead: AdvisorId | null, verified: readonly AdvisorId[]): void {

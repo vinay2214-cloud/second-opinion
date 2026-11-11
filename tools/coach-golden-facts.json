@@ -1,0 +1,618 @@
+{
+ "note": "30 golden fact sets for tools/coach-eval.mjs (T16). Hand-written to cover every headline, drift noticed, missed and absent, zero to two patterns, pressureDrop true and false, verifyYield null and numeric, and index 0 and 100. Invented numbers, no player data. Every set must pass validateCoachFacts; the tool checks this before any request.",
+ "facts": [
+  {
+   "v": 1,
+   "headline": "balanced",
+   "index": 100,
+   "disagreements": 6,
+   "overRelianceRate": 0,
+   "underRelianceRate": 0,
+   "verifyYield": null,
+   "drift": null,
+   "pressureDrop": false,
+   "patterns": []
+  },
+  {
+   "v": 1,
+   "headline": "balanced",
+   "index": 88,
+   "disagreements": 8,
+   "overRelianceRate": 13,
+   "underRelianceRate": 0,
+   "verifyYield": 100,
+   "drift": {
+    "advisor": "Dash",
+    "category": "breathing",
+    "noticed": true
+   },
+   "pressureDrop": false,
+   "patterns": []
+  },
+  {
+   "v": 1,
+   "headline": "balanced",
+   "index": 83,
+   "disagreements": 6,
+   "overRelianceRate": 0,
+   "underRelianceRate": 17,
+   "verifyYield": 50,
+   "drift": {
+    "advisor": "Sage",
+    "category": "cardiac",
+    "noticed": true
+   },
+   "pressureDrop": false,
+   "patterns": []
+  },
+  {
+   "v": 1,
+   "headline": "balanced",
+   "index": 90,
+   "disagreements": 10,
+   "overRelianceRate": 10,
+   "underRelianceRate": 0,
+   "verifyYield": 75,
+   "drift": {
+    "advisor": "Ledger",
+    "category": "cardiac",
+    "noticed": false
+   },
+   "pressureDrop": true,
+   "patterns": []
+  },
+  {
+   "v": 1,
+   "headline": "balanced",
+   "index": 100,
+   "disagreements": 2,
+   "overRelianceRate": 0,
+   "underRelianceRate": 0,
+   "verifyYield": 0,
+   "drift": null,
+   "pressureDrop": false,
+   "patterns": []
+  },
+  {
+   "v": 1,
+   "headline": "balanced",
+   "index": 100,
+   "disagreements": 12,
+   "overRelianceRate": 0,
+   "underRelianceRate": 0,
+   "verifyYield": 100,
+   "drift": {
+    "advisor": "Dash",
+    "category": "infection",
+    "noticed": true
+   },
+   "pressureDrop": true,
+   "patterns": []
+  },
+  {
+   "v": 1,
+   "headline": "overReliance",
+   "index": 0,
+   "disagreements": 4,
+   "overRelianceRate": 100,
+   "underRelianceRate": 0,
+   "verifyYield": null,
+   "drift": {
+    "advisor": "Dash",
+    "category": "children",
+    "noticed": false
+   },
+   "pressureDrop": false,
+   "patterns": [
+    {
+     "kind": "followedTooOften",
+     "advisor": "Dash",
+     "category": "children",
+     "count": 4,
+     "of": 4,
+     "adviceRight": 0
+    }
+   ]
+  },
+  {
+   "v": 1,
+   "headline": "overReliance",
+   "index": 40,
+   "disagreements": 5,
+   "overRelianceRate": 60,
+   "underRelianceRate": 0,
+   "verifyYield": 33,
+   "drift": null,
+   "pressureDrop": false,
+   "patterns": [
+    {
+     "kind": "followedTooOften",
+     "advisor": "Orator",
+     "category": "injury",
+     "count": 3,
+     "of": 3,
+     "adviceRight": 1
+    }
+   ]
+  },
+  {
+   "v": 1,
+   "headline": "overReliance",
+   "index": 50,
+   "disagreements": 8,
+   "overRelianceRate": 50,
+   "underRelianceRate": 0,
+   "verifyYield": 25,
+   "drift": {
+    "advisor": "Ledger",
+    "category": "cardiac",
+    "noticed": false
+   },
+   "pressureDrop": true,
+   "patterns": [
+    {
+     "kind": "followedTooOften",
+     "advisor": "Ledger",
+     "category": "infection",
+     "count": 2,
+     "of": 2,
+     "adviceRight": 0
+    },
+    {
+     "kind": "followedTooOften",
+     "advisor": "Orator",
+     "category": "cardiac",
+     "count": 2,
+     "of": 2,
+     "adviceRight": 1
+    }
+   ]
+  },
+  {
+   "v": 1,
+   "headline": "overReliance",
+   "index": 33,
+   "disagreements": 6,
+   "overRelianceRate": 67,
+   "underRelianceRate": 0,
+   "verifyYield": null,
+   "drift": {
+    "advisor": "Sage",
+    "category": "breathing",
+    "noticed": true
+   },
+   "pressureDrop": false,
+   "patterns": []
+  },
+  {
+   "v": 1,
+   "headline": "overReliance",
+   "index": 57,
+   "disagreements": 7,
+   "overRelianceRate": 43,
+   "underRelianceRate": 0,
+   "verifyYield": 100,
+   "drift": null,
+   "pressureDrop": true,
+   "patterns": [
+    {
+     "kind": "followedTooOften",
+     "advisor": "Ledger",
+     "category": "children",
+     "count": 3,
+     "of": 4,
+     "adviceRight": 1
+    }
+   ]
+  },
+  {
+   "v": 1,
+   "headline": "overReliance",
+   "index": 25,
+   "disagreements": 4,
+   "overRelianceRate": 75,
+   "underRelianceRate": 0,
+   "verifyYield": 0,
+   "drift": {
+    "advisor": "Dash",
+    "category": "injury",
+    "noticed": false
+   },
+   "pressureDrop": false,
+   "patterns": [
+    {
+     "kind": "followedTooOften",
+     "advisor": "Orator",
+     "category": "breathing",
+     "count": 2,
+     "of": 2,
+     "adviceRight": 0
+    }
+   ]
+  },
+  {
+   "v": 1,
+   "headline": "overReliance",
+   "index": 0,
+   "disagreements": 2,
+   "overRelianceRate": 100,
+   "underRelianceRate": 0,
+   "verifyYield": null,
+   "drift": null,
+   "pressureDrop": false,
+   "patterns": [
+    {
+     "kind": "followedTooOften",
+     "advisor": "Dash",
+     "category": "children",
+     "count": 2,
+     "of": 2,
+     "adviceRight": 0
+    }
+   ]
+  },
+  {
+   "v": 1,
+   "headline": "overReliance",
+   "index": 80,
+   "disagreements": 10,
+   "overRelianceRate": 20,
+   "underRelianceRate": 0,
+   "verifyYield": 50,
+   "drift": {
+    "advisor": "Dash",
+    "category": "breathing",
+    "noticed": false
+   },
+   "pressureDrop": false,
+   "patterns": [
+    {
+     "kind": "followedTooOften",
+     "advisor": "Orator",
+     "category": "infection",
+     "count": 2,
+     "of": 2,
+     "adviceRight": 1
+    }
+   ]
+  },
+  {
+   "v": 1,
+   "headline": "underReliance",
+   "index": 0,
+   "disagreements": 3,
+   "overRelianceRate": 0,
+   "underRelianceRate": 100,
+   "verifyYield": null,
+   "drift": null,
+   "pressureDrop": false,
+   "patterns": [
+    {
+     "kind": "overruledTooOften",
+     "advisor": "Sage",
+     "category": "cardiac",
+     "count": 3,
+     "of": 3,
+     "adviceRight": 3
+    }
+   ]
+  },
+  {
+   "v": 1,
+   "headline": "underReliance",
+   "index": 50,
+   "disagreements": 6,
+   "overRelianceRate": 0,
+   "underRelianceRate": 50,
+   "verifyYield": 50,
+   "drift": {
+    "advisor": "Dash",
+    "category": "cardiac",
+    "noticed": true
+   },
+   "pressureDrop": false,
+   "patterns": [
+    {
+     "kind": "overruledTooOften",
+     "advisor": "Dash",
+     "category": "cardiac",
+     "count": 2,
+     "of": 2,
+     "adviceRight": 2
+    }
+   ]
+  },
+  {
+   "v": 1,
+   "headline": "underReliance",
+   "index": 60,
+   "disagreements": 5,
+   "overRelianceRate": 0,
+   "underRelianceRate": 40,
+   "verifyYield": 0,
+   "drift": null,
+   "pressureDrop": true,
+   "patterns": [
+    {
+     "kind": "overruledTooOften",
+     "advisor": "Sage",
+     "category": "infection",
+     "count": 2,
+     "of": 2,
+     "adviceRight": 2
+    }
+   ]
+  },
+  {
+   "v": 1,
+   "headline": "underReliance",
+   "index": 43,
+   "disagreements": 7,
+   "overRelianceRate": 0,
+   "underRelianceRate": 57,
+   "verifyYield": 67,
+   "drift": {
+    "advisor": "Sage",
+    "category": "children",
+    "noticed": false
+   },
+   "pressureDrop": false,
+   "patterns": [
+    {
+     "kind": "overruledTooOften",
+     "advisor": "Ledger",
+     "category": "cardiac",
+     "count": 3,
+     "of": 3,
+     "adviceRight": 3
+    },
+    {
+     "kind": "overruledTooOften",
+     "advisor": "Dash",
+     "category": "breathing",
+     "count": 2,
+     "of": 2,
+     "adviceRight": 2
+    }
+   ]
+  },
+  {
+   "v": 1,
+   "headline": "underReliance",
+   "index": 67,
+   "disagreements": 9,
+   "overRelianceRate": 0,
+   "underRelianceRate": 33,
+   "verifyYield": null,
+   "drift": {
+    "advisor": "Ledger",
+    "category": "cardiac",
+    "noticed": true
+   },
+   "pressureDrop": false,
+   "patterns": []
+  },
+  {
+   "v": 1,
+   "headline": "underReliance",
+   "index": 0,
+   "disagreements": 2,
+   "overRelianceRate": 0,
+   "underRelianceRate": 100,
+   "verifyYield": null,
+   "drift": null,
+   "pressureDrop": false,
+   "patterns": [
+    {
+     "kind": "overruledTooOften",
+     "advisor": "Dash",
+     "category": "cardiac",
+     "count": 2,
+     "of": 2,
+     "adviceRight": 2
+    }
+   ]
+  },
+  {
+   "v": 1,
+   "headline": "mixed",
+   "index": 50,
+   "disagreements": 8,
+   "overRelianceRate": 25,
+   "underRelianceRate": 25,
+   "verifyYield": 50,
+   "drift": null,
+   "pressureDrop": false,
+   "patterns": [
+    {
+     "kind": "followedTooOften",
+     "advisor": "Orator",
+     "category": "injury",
+     "count": 2,
+     "of": 2,
+     "adviceRight": 0
+    },
+    {
+     "kind": "overruledTooOften",
+     "advisor": "Sage",
+     "category": "breathing",
+     "count": 2,
+     "of": 2,
+     "adviceRight": 2
+    }
+   ]
+  },
+  {
+   "v": 1,
+   "headline": "mixed",
+   "index": 33,
+   "disagreements": 6,
+   "overRelianceRate": 33,
+   "underRelianceRate": 33,
+   "verifyYield": null,
+   "drift": {
+    "advisor": "Dash",
+    "category": "breathing",
+    "noticed": false
+   },
+   "pressureDrop": true,
+   "patterns": [
+    {
+     "kind": "followedTooOften",
+     "advisor": "Dash",
+     "category": "breathing",
+     "count": 2,
+     "of": 2,
+     "adviceRight": 0
+    }
+   ]
+  },
+  {
+   "v": 1,
+   "headline": "mixed",
+   "index": 60,
+   "disagreements": 10,
+   "overRelianceRate": 20,
+   "underRelianceRate": 20,
+   "verifyYield": 100,
+   "drift": {
+    "advisor": "Sage",
+    "category": "injury",
+    "noticed": true
+   },
+   "pressureDrop": false,
+   "patterns": []
+  },
+  {
+   "v": 1,
+   "headline": "mixed",
+   "index": 0,
+   "disagreements": 4,
+   "overRelianceRate": 50,
+   "underRelianceRate": 50,
+   "verifyYield": 0,
+   "drift": null,
+   "pressureDrop": true,
+   "patterns": [
+    {
+     "kind": "overruledTooOften",
+     "advisor": "Ledger",
+     "category": "cardiac",
+     "count": 2,
+     "of": 2,
+     "adviceRight": 2
+    }
+   ]
+  },
+  {
+   "v": 1,
+   "headline": "mixed",
+   "index": 44,
+   "disagreements": 9,
+   "overRelianceRate": 33,
+   "underRelianceRate": 22,
+   "verifyYield": 25,
+   "drift": {
+    "advisor": "Ledger",
+    "category": "cardiac",
+    "noticed": false
+   },
+   "pressureDrop": false,
+   "patterns": [
+    {
+     "kind": "followedTooOften",
+     "advisor": "Ledger",
+     "category": "cardiac",
+     "count": 3,
+     "of": 3,
+     "adviceRight": 1
+    },
+    {
+     "kind": "overruledTooOften",
+     "advisor": "Dash",
+     "category": "injury",
+     "count": 2,
+     "of": 2,
+     "adviceRight": 2
+    }
+   ]
+  },
+  {
+   "v": 1,
+   "headline": "mixed",
+   "index": 71,
+   "disagreements": 14,
+   "overRelianceRate": 14,
+   "underRelianceRate": 14,
+   "verifyYield": 75,
+   "drift": {
+    "advisor": "Sage",
+    "category": "cardiac",
+    "noticed": true
+   },
+   "pressureDrop": true,
+   "patterns": [
+    {
+     "kind": "followedTooOften",
+     "advisor": "Orator",
+     "category": "children",
+     "count": 2,
+     "of": 2,
+     "adviceRight": 1
+    }
+   ]
+  },
+  {
+   "v": 1,
+   "headline": "notEnough",
+   "index": null,
+   "disagreements": 0,
+   "overRelianceRate": null,
+   "underRelianceRate": null,
+   "verifyYield": null,
+   "drift": null,
+   "pressureDrop": false,
+   "patterns": []
+  },
+  {
+   "v": 1,
+   "headline": "notEnough",
+   "index": null,
+   "disagreements": 1,
+   "overRelianceRate": null,
+   "underRelianceRate": null,
+   "verifyYield": 100,
+   "drift": null,
+   "pressureDrop": false,
+   "patterns": []
+  },
+  {
+   "v": 1,
+   "headline": "notEnough",
+   "index": null,
+   "disagreements": 1,
+   "overRelianceRate": null,
+   "underRelianceRate": null,
+   "verifyYield": 0,
+   "drift": {
+    "advisor": "Dash",
+    "category": "cardiac",
+    "noticed": false
+   },
+   "pressureDrop": false,
+   "patterns": []
+  },
+  {
+   "v": 1,
+   "headline": "notEnough",
+   "index": null,
+   "disagreements": 0,
+   "overRelianceRate": null,
+   "underRelianceRate": null,
+   "verifyYield": null,
+   "drift": null,
+   "pressureDrop": true,
+   "patterns": []
+  }
+ ]
+}

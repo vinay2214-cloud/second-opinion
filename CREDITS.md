@@ -3,6 +3,7 @@
 | Asset | Source | Licence | Where used |
 |---|---|---|---|
 | Ward diorama, trays, plinths, patient token, text labels | Original, generated in code for this project (`src/scene/**`) | n/a | The whole scene |
+| Five sound cues (stamp, advice, second opinion, surge, result) | Original, synthesised at run time with the Web Audio API (`src/audio/cues.ts`); no audio files | n/a | Feedback during a shift |
 
 List every external font, model, sound or library that is not an npm dependency. If it is all original, say so.
 

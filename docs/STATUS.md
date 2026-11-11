@@ -14,11 +14,13 @@ Evidence paths are under `spikes/evidence/`. Last update: Wed 11 Nov 2026.
 | T08 Module 3, surges, drift | Done | `T08-*.png`, `T08-10-seed-lengths.txt` |
 | T12 accessibility and onboarding | Done, see below | `T12-*.png` |
 | T09 trust map (Astra's model, my view) | Merged and shown on the debrief | `T09-debrief-review.png`, `T09-trust-map.png` |
-| T10 sound | Not started: no audio brief in `proposals/` | `spikes/S6.md` (API works, unheard) |
+| T10 sound | Brief written (`proposals/audio-brief.md`) and built: five synthesised cues, Sound toggle. Works in the emulator; **nobody has heard it** | `T10-*.png`, `spikes/S6.md` |
+| T11 gap review | Done, see "Gap review" below | |
+| T16 coach prompt evaluation | Tool and 30 fact sets written. **Not run**: waiting for the owner to say the key is set | `tools/coach-eval.mjs` |
 | T14 polish, debug, safe mode | Done except the items listed below | `T14-*.png` |
 | T15 coach client and proxy (Astra) | Merged into `main` (`0034e0a`). Worker not deployed; no proxy URL set | |
 | T17 coach button | Built; tested against a mock proxy only. Off in the live build until the owner sets `VITE_COACH_PROXY_URL` | `T17-*.png` |
-| Stage D: QA, submission check, footage kit | D1 to D3 done; D4 (`rc1`) waits for the owner | `submission/footage/` |
+| Stage D: QA, submission check, footage kit | D1 to D3 done; `rc1` tagged on the emulator bar (Stage 1). Footage now has the Orator and drift moments on seed `ward-128` | `submission/footage/` |
 
 ## A0 sync
 - 10 Nov: `agent/core` had nothing after T05.
@@ -57,10 +59,10 @@ What shipped:
 
 Not shipped in T12:
 - **Gaze-dwell:** skipped. Spike S5 was never run, so the precondition is not met.
-- **Sound-off setting:** nothing to switch off yet. `src/persist` settings has no mute field; T10 will need one from Astra or a key of its own.
+- **Sound-off setting:** added later with T10 (its own key, see "Sound (T10)").
 
 ## Stage B: T10 and T14 (11 Nov)
-**T10 sound: not built.** There is no audio brief in `proposals/`. The game is silent; every cue is visual. If the brief has not arrived by Sat 14 Nov noon, it ships silent.
+**T10 sound: built on 11 Nov, see "Sound (T10)" below.** (Earlier the same day this section said "not built"; the brief has since been written.)
 
 **T14 acceptance:**
 - Bundle under 15 MB: pass. `dist/` is 3.1 MB of files (largest 2.48 MB, about 0.68 MB gzipped).
@@ -114,6 +116,67 @@ Limits of these tests:
 - Presses were pinch-rays with one hand. Not run: a fingertip poke on this button, high contrast and big text with the coach card open, a played (non-idle) shift with the coach on, and anything on a headset.
 - The real proxy's origin allowlist, rate limit and kill switch are Astra's unit tests (`tests/coachProxy.test.ts`); nothing here exercised a deployed Worker.
 
+## Sound (T10, 11 Nov, emulator only, unheard)
+**Nobody has heard these sounds.** The emulator's browser is headless. What is verified is that the cues are scheduled on a running audio context and produce a signal; loudness, tone and timing against the visuals need one listen by a person (a desktop browser is enough for tone, a headset for timing). If a listen before Fri 13 Nov evening finds them wrong or unstable, the fallback is to ship silent: set the Sound default to off or remove the five `cue()` calls, and say so here.
+
+Brief: `proposals/audio-brief.md` (written by me in Argon's place; a proposal until the owner accepts it). Spike S6 passed, so it was implemented.
+
+- **Five cues**, synthesised at run time with Web Audio oscillators (`src/audio/cues.ts`). No audio files, 0 bytes of audio payload, nothing external (CREDITS.md updated). Master gain 0.18; the longest cue is 0.36 s. Not spatialised.
+- **Stamp** on an accepted commit (twin: token snap and tray ring pulse). **Advice** when the lead advisor's line first appears for a patient (twin: plinth lights, call and quote). **Verify** on a granted second opinion (twin: pip empties, "1 token spent" line). **Surge** when a surge patient arrives, never in calm mode (twin: "SURGE" on the card, shorter ring). **Result** when a patient resolves, a rising pair if the final call was right and a falling pair if wrong or missed (twin: truth tray glow, answer line, score).
+- **Sound toggle** in the settings menu, on the left edge above Pause (the row of four is full). Saved under its own key `so.sound` through the safe storage wrapper, because `src/persist` settings has no mute field. On by default. `T10-01-settings-sound-on.png`, `T10-02-settings-sound-off.png`.
+- It uses the framework listener's audio context, which is resumed on XR entry (S6). If the context is not running a cue is skipped; nothing waits for sound.
+- Left out on purpose (see the brief): pickup and hover ticks, one motif per advisor, the last-8-seconds tick, the drift chime, ambient hum.
+
+Tests:
+| Run | Result |
+|---|---|
+| Full played Module 3 shift, sound on, seed `ward-a` (the footage script) | 14 stamp, 14 advice, 1 verify, 4 surge, 14 result cues, every one `played=true`; dev-build meter read a peak between 0.047 and 0.133 after each (below the 0.18 master gain, so no clipping). 0 console errors in the shift, `[debrief] match=true`, score 180, index 100 |
+| Idle Module 3 shift, calm on, sound on (16x dev clock) | 0 surge cues, 14 result cues. 0 errors |
+| Idle Module 3 shift, sound off (16x dev clock) | 18 cue events, all `played=false`. Same score (-18) as the same idle shift with sound on. 0 errors |
+
+Not tested: sound on a headset or any speaker; the flat-browser view (no XR session, so the context may stay suspended and the game stay silent there); a mute while a cue is sounding (the cue finishes; the longest is 0.36 s).
+
+Seen in passing, not changed: the idle calm shift ran to exactly the 8:00 hard cap (480.2 s) instead of ending when the last window closed. And with the settings row opened on the debrief, the settings help text is not visible (it is drawn on the speech panel, which the debrief hides); the toggles themselves work.
+
+## Coach prompt evaluation (T16): written, not run
+- `tools/coach-eval.mjs` compiles the proxy's own provider code (`server/coach-proxy/provider.ts`), sends the 30 fact sets in `tools/coach-golden-facts.json` one at a time with the proxy's 3 s limit, checks each reply with `validateCoachText`, and writes `submission/coach-eval/report.md`: pass rate, failure reasons, a 10-row spot-check table with an empty column for the owner, and every reply. It reads `COACH_API_KEY` and `COACH_MODEL` from the environment and never prints or records either. It exits non-zero under 95%.
+- **The tool has not been run, not even its `--dry-run` mode**, as instructed. Checked separately: the provider compiles with the tool's compiler settings, and all 30 fact sets pass `validateCoachFacts` (6 balanced, 8 over-reliance, 6 under-reliance, 6 mixed, 4 not-enough). The report-writing code is therefore untested until the first real run.
+- To run it: set the two variables in your own shell, then `node tools/coach-eval.mjs`. About 1 minute and 30 requests.
+
+## Footage: the two missing moments (11 Nov)
+- Seed hunt: `submission/footage/find-seed.mjs` builds Module 3 shifts with `core-spec` and lists seeds where Orator leads and is wrong and where the drifted advisor leads a drifted-category patient and is wrong. 119 of 326 seeds tried have both. Chosen: **`ward-128`**.
+- In `ward-128`: patient 3, Orator leads, "very sure", says Amber, answer Red. Patient 9, Dash carries the "update installed" tag and says Amber on a breathing case, answer Red (Dash was right on breathing at patient 1).
+- Re-shot in the emulator with `submission/footage/footage-ward-128.sh`: `14a`, `14b`, `15a`, `15b`, `15c` in `submission/footage/`. The run was played to patient 9 and stopped; 0 console errors to that point; the log matches the prediction patient by patient. README updated.
+- Shots 01 to 13 are still from `ward-a`. For one consistent video, record everything on `?seed=ward-128`.
+
+## Gap review (T11): shipped game against the M requirements in docs/01-PRD.md (11 Nov)
+Scope: the game on `main`, judged from the code, the emulator runs recorded in this file, and the live URL load. "Emulator only" below means the requirement works in the IWSDK emulator and has never been run on a Quest.
+
+**Not met, or met only in part:**
+| ID | Requirement | Gap |
+|---|---|---|
+| FR-34 | Pause and resume from a wrist-attached menu | Pause works and stops the clock, but it is a table-edge button. No wrist menu (spike S3 never run). `docs/04` section 7 allows this; the PRD wording does not |
+| FR-52 | Calm mode: slower clock, fewer simultaneous patients; changes `shift-config` multipliers | Arrivals and windows are 1.5x slower. Surges still bring two patients at once, so "fewer simultaneous patients" is not met. The 1.5 is a constant in `src/core/shift-runtime.ts` (same as `core-spec`), not a value in `data/shift-config.json`. Calm applies from the next shift, not mid-shift. Core lane |
+| FR-51 | High-contrast toggle works at any time | Works before, during (menu open) and after a shift. The coach card and the Sound toggle have not been screenshotted in high contrast |
+| FR-56 | Essential UI inside about 70 by 66 degrees and within 60 cm | Computed from the layout, not measured. With Big text the vertical span is about 67 degrees. The horizontal span is 68 degrees. No FoV mask review was done |
+| FR-20 | Vitals card text at least 1.2 cm tall | Capitals on the card are about 1.19 cm (the rule scaled to the card's 46 cm distance asks for 1.10 cm). Under the literal 1.2 cm by a hair |
+| FR-21 | Poke expands the card within 150 ms | The card opens on the frame after the finger lifts. The delay was not measured. There is no poke to collapse it (by design, Stage 1 fix 5) |
+| FR-10 | Tutorial; a fresh player completes the first patient unaided | Tutorial built and scripted in 27.6 s. No fresh person has tried it |
+| FR-61 | Fully playable with no network | True once the page has loaded: the base game makes no request, and the coach falls back. The page itself is not cached for offline use, so it cannot be opened without a network. No airplane-mode playthrough on a headset |
+| FR-64 | Proxy: key server-side, rate limit, kill switch, spend cap | Code and tests are merged (kill switch, allowlist, rate limit). The Worker is not deployed, so the spend cap, the real kill switch and the origin allowlist are untested. No key-like string in the tracked files |
+
+**Met in the emulator only (needs the Quest tester):**
+FR-01 (the live URL loads with 0 failed requests and 0 console errors from a desktop browser; the 10 s cold start on a headset is unmeasured), FR-02 (passthrough session), FR-03 (plane detection and pinch confirm on a real table), FR-04 (virtual table after 5 s; the permission-declined path was not exercised), FR-05 (anchor and Centre; whether a native anchor is created is unknown, see `spikes/S4.md`), FR-22 and FR-25 (real pinch-grab and release), FR-24 (real poke on a plinth), FR-53 (one real hand).
+
+**Met:**
+FR-11, FR-23 (no advice before commit, three no-leak screenshots), FR-26, FR-27, FR-28, FR-30 (14 patients, 4/6/4, two surges, 480 s cap), FR-31, FR-32 (all 326 seeds checked have a drift), FR-33, FR-40 (`[debrief] match=true` in every run), FR-50, FR-62 (the only network call is in a press handler), FR-63 (validator tests, and a mocked bad reply was rejected in the emulator).
+
+**FR-55 (every audio cue has a visual equivalent):** met in the emulator. Each of the five cues fires at the same event as an existing visual, and a shift with Sound off plays the same (see "Sound (T10)" above). Unheard.
+
+**Non-functional and rule items that are still open:** NFR-01 frame rate on device (unmeasured), NFR-02 cold start on device (the bundle is 3.1 MB of 15), NFR-03 token instancing (not done; at most 3 tokens), NFR-07 same shift "on every device" (one machine only), RC-01 hands end to end on real hands, RC-07 video and form (owner), RC-10 if the coach is switched on its proxy must stay up until about 11 Dec.
+
+**Should-level items not shipped** (for the submission text): FR-35 daily seed, FR-36 module gating (all three modules are open from the start), FR-42 personal best (history and streak are stored; a best score is not shown), FR-54 gaze-dwell.
+
 ## Stage D1: QA from docs/08 (11 Nov, emulator only)
 Automated:
 - `npm test`: 93 passed. `node tools/parity.mjs`: 0 diffs over 100 seeds. `npx tsc --noEmit`: clean. `npm run build`: OK, 3.1 MB.
@@ -147,15 +210,15 @@ Cannot be checked here (remote Quest tester): frame rate, cold start time, real 
 `python3 tools/check-submission.py`: taglines 114, 112, 118 characters OK; description 492 words OK; voice-over 177 words.
 
 Mismatches in `docs/09-submission-kit.md` for the owner to fix (I did not edit it):
-1. **"Every sound has a visual twin."** The game has no sound. Either remove the sentence or say the game is silent with visual cues for every event. The voice-over note "leaves room for gameplay sound" has the same problem.
+1. **"Every sound has a visual twin."** True since 11 Nov if the sound ships (five cues, each with a visual twin, Sound toggle). If the game ships silent after the listen, remove the sentence.
 2. **Gaze-dwell** ("[IF SHIPPED] A gaze-dwell mode…", and "Gaze-dwell and one-hand modes replace pokes and grabs" in the hand-interactions text): not shipped. Remove both.
 3. **"one-hand modes"**: there is no mode. Every action works with one hand by default. "One-hand play" in the description is accurate; the hand-interactions sentence is not.
 4. **Daily seeded shift** ("[IF SHIPPED] A daily seeded shift…"): not shipped. The seed is fixed (`ward-a`, or `?seed=`). Remove it. A day streak is recorded and shown, which could be mentioned instead.
 5. **AI coach** ("[IF SHIPPED] An optional AI coach…"): built, but off in the live build until the proxy is deployed and `VITE_COACH_PROXY_URL` is set. Keep the sentence only if that happens before the freeze and a real reply has been seen.
 6. **"Immersive Web SDK 1.0"**: the installed version is 1.1.0-rc.2 (npm has no 1.0 tag).
 7. **"A table-edge menu pauses the game."** Accurate, but it is a Pause button plus a Menu button for settings.
-8. **Video shot 1:35 to 1:55, "advisor wrong on a category, player notices"**: with seed `ward-a` the drifted advisor (Ledger, cardiac) leads only one later patient and is right there, so the footage shows the "update installed" tag but not a visible mistake.
-9. **Video shot 0:55 to 1:15, "Orator gives a long confident wrong answer"**: with seed `ward-a` Orator is right every time it leads. It is wrong as a second opinion on patient 1, which is what the footage kit shows.
+8. **Video shot 1:35 to 1:55, "advisor wrong on a category, player notices"**: not possible on seed `ward-a`. Solved by seed `ward-128` (patient 9, stills `15a` to `15c`).
+9. **Video shot 0:55 to 1:15, "Orator gives a long confident wrong answer"**: not possible on seed `ward-a`. Solved by seed `ward-128` (patient 3, stills `14a` and `14b`).
 10. **[CONFIRM AFTER BUILD] plane detection with virtual-table fallback**: true in the emulator. Real-room behaviour is untested.
 11. Testing statement: everything is emulator only. Do not write "tested on Quest".
 
@@ -167,8 +230,8 @@ Accurate as written: four advisors and their descriptions, second-opinion tokens
 ## Stage D4: `rc1` not tagged, waiting for the owner
 The condition is a fresh-profile test on the live URL that includes a full shift and the debrief. From here the live URL can only be loaded (0 failed requests, 0 console errors, start screen shows). Playing a shift on the deployed build needs a headset: the emulator is only part of the dev server, and a desktop browser has no WebXR. A full shift on the same code passes in the local emulator.
 
-## Copy note for Astra (data lane)
-`data/debrief-lines.json` nextStep.balanced says "Next: try the daily shift and beat your index." There is no daily shift (fixed seed). It showed in the footage run debrief.
+## Copy note for Astra (data lane): fixed
+`data/debrief-lines.json` nextStep.balanced said "try the daily shift". Astra's `cd4c6fb` changed it to "Next: play another shift and try to beat your index." Still "daily shift" in `10-debrief-calibration.png` (shot before the fix).
 
 ## Stage 1 fixes and `rc1` (11 Nov, emulator only)
 1. **Button labels:** Pause, Keep, Menu and Centre now have 2.6 cm label rows (capitals about 1.3 cm; the rule scaled to their 53 cm distance is 1.27 cm). Buttons were widened to fit; gaps stay at 2 cm or more. Toggled words were shortened to fit: Resume is now "Play", Close is "Done", Review is "Back". `S1-drift-tag-and-labels.png`.
@@ -183,7 +246,7 @@ The condition is a fresh-profile test on the live URL that includes a full shift
 
 ## Stages 3 and 4: waiting
 - Coach: see Stage C above (built, off until the proxy URL is set).
-- Sound: no audio brief in `proposals/` as of 11 Nov. Silent.
+- Sound: see "Sound (T10)" above (built, unheard).
 
 ## Open issues
 - The ghost hand is a simple blocky shape and can be hard to read against the card.
@@ -191,4 +254,9 @@ The condition is a fresh-profile test on the live URL that includes a full shift
 - For the remote Quest tester: poke accuracy on 4.5 cm buttons; accidental card pokes when reaching for the lane; speech text legibility at about 65 cm; whether the tracking-loss freeze triggers when hands rest in the lap.
 
 ## Next
-Gate 2 check, then T14 (T10 only if the audio brief arrives).
+Waiting on the owner:
+1. Listen to the five cues once (any desktop browser after entering the emulator, or the headset tester) and accept or reject `proposals/audio-brief.md`. Deadline for the silent fallback: Fri 13 Nov evening.
+2. Deploy the Worker, then set the repository variable `VITE_COACH_PROXY_URL` and re-run the deploy workflow. After that, one real coach tap on the live build.
+3. Say when `COACH_API_KEY` and `COACH_MODEL` are set in the shell, so `tools/coach-eval.mjs` can be run; then spot-check 10 replies in `submission/coach-eval/report.md`.
+4. Fix the submission text items in Stage D2 (not edited by me).
+5. One fresh person for the tutorial and "it looks clean"; the Quest tester for everything marked emulator only.

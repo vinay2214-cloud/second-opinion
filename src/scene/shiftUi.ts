@@ -46,7 +46,10 @@ export interface ShiftUiParts {
   pause: ButtonParts;
   /** Opens the settings row. labels[0] = "Menu", labels[1] = "Done". */
   settings: ButtonParts;
-  /** Shown in place of the card while settings are open. labels[0] = off, labels[1] = on. */
+  /**
+   * Shown in place of the card while settings are open. labels[0] = off, labels[1] = on.
+   * The fifth (Sound) sits on the left edge above Pause, where there is room.
+   */
   toggles: Array<{ key: ToggleKey; parts: ButtonParts }>;
 }
 
@@ -104,6 +107,7 @@ const TOGGLES: Array<{ key: ToggleKey; label: string }> = [
   { key: 'calm', label: 'Calm' },
   { key: 'largeText', label: 'Big text' },
   { key: 'tutorial', label: 'Tutorial' },
+  { key: 'sound', label: 'Sound' },
 ];
 
 export function buildShiftUi(): ShiftUiParts {
@@ -136,7 +140,12 @@ export function buildShiftUi(): ShiftUiParts {
   // Settings row, same place: four toggles, 7 cm wide, 2 cm gaps.
   const toggles = TOGGLES.map(({ key, label }, i) => {
     const parts = button(`Toggle ${label}`, 0.074, 0.05, [`${label}\noff`, `${label}\nON`], PALETTE.button);
-    parts.root.position.set(-0.1705 + i * 0.094, 0.005, 0.13);
+    if (key === 'sound') {
+      // The row is full: left edge, above Pause, 2 cm clear of it.
+      parts.root.position.set(-0.26, 0.005, 0.08);
+    } else {
+      parts.root.position.set(-0.1705 + i * 0.094, 0.005, 0.13);
+    }
     return { key, parts };
   });
   const settings = button('Settings Button', 0.052, 0.04, ['Menu', 'Done'], PALETTE.button);
