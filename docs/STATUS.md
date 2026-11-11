@@ -17,7 +17,7 @@ Evidence paths are under `spikes/evidence/`. Last update: Wed 11 Nov 2026.
 | T10 sound | Not started: no audio brief in `proposals/` | `spikes/S6.md` (API works, unheard) |
 | T14 polish, debug, safe mode | Done except the items listed below | `T14-*.png` |
 | T17 coach button | Blocked: Astra's T15 is not merged | |
-| Stage D | Not started | |
+| Stage D: QA, submission check, footage kit | D1 to D3 done; D4 (`rc1`) waits for the owner | `submission/footage/` |
 
 ## A0 sync
 - 10 Nov: `agent/core` had nothing after T05.
@@ -63,7 +63,7 @@ Not shipped in T12:
 **T14 acceptance:**
 - Bundle under 15 MB: pass. `dist/` is 3.1 MB of files (largest 2.48 MB, about 0.68 MB gzipped).
 - No console errors across 5 full shifts: pass. Module 1, 2, 3, 1, 2 in a row, hands only: 0 errors. One warning (debrief text shrunk to 93%) is fixed by a taller panel.
-- `?debug=1` and `?safe=1` on the deployed build: both load with 0 failed requests and 0 console errors (see the live check below). In the emulator both were exercised in a session: `T14-safe-debug-held.png`.
+- `?debug=1` and `?safe=1` on the deployed build: both load with 0 failed requests and 0 console errors (`T14-live-debug-safe.png`, taken from the live URL; the overlay shows build tag, frame time and "Last error: none"). In the emulator both were exercised in a session: `T14-safe-debug-held.png`.
 - "It looks clean" from a fresh person: **not done.** Needs a human; ask one person.
 
 **T14 changes:**
@@ -74,13 +74,72 @@ Not shipped in T12:
 - Commit snap overshoots slightly before the stamp.
 - Canvas textures capped at 1024 px per side.
 - Idle screens redraw four times a second instead of every frame.
-- Test aids: `?speed=` and `src/game/testRun.ts` are read only in dev builds; the production bundle contains neither string (`grep -c TEST_RUN dist/assets/index-*.js` gives 0). `?seed=` and `?module=`... only `?seed=` works on the live site, by design.
+- Test aids: `?speed=` and `src/game/testRun.ts` are read only in dev builds; the production bundle contains neither string (`grep -c TEST_RUN dist/assets/index-*.js` gives 0). `?seed=` still works on the live site, by design. The live URL with `?speed=8` loads normally and ignores it.
 
 **T14 not done:**
 - Ward overhang: unchanged. On the emulator's round desk the ward's front corners overhang. Fixing it means pushing the ward 10 cm further away, which breaks the 60 cm reach. A rectangular table fits.
 - Instancing of tokens and trays: not done; object counts are small (at most 3 tokens, 3 trays).
 - Frame rate on device: cannot be measured in the emulator. The debug overlay exists so the Quest tester can report it.
 - Button labels ("Pause", "Keep", "Menu", "Centre") have capitals of about 1 cm, under the 1.2 cm rule.
+
+## Stage C: T17 coach button: blocked
+`agent/core` has no T15 (coach client and proxy) as of 11 Nov. Nothing is built: there is no coach button and no network call anywhere in the game. If T15 lands before the freeze I will trial-merge and do T17; otherwise the coach is cut and the submission text must not mention it.
+
+## Stage D1: QA from docs/08 (11 Nov, emulator only)
+Automated:
+- `npm test`: 93 passed. `node tools/parity.mjs`: 0 diffs over 100 seeds. `npx tsc --noEmit`: clean. `npm run build`: OK, 3.1 MB.
+- `core-spec`: 40 passed. `validate-cases.js`: "cases.seed.json is valid". `simulate-balance.js 300 0.7`: "BALANCE GATE: PASS".
+
+Emulator checks table:
+| Check | Result |
+|---|---|
+| Console clean in a full shift | Pass: five shifts in a row, 0 errors |
+| No-leak at "token held" | Pass: `T07-token-held.png`, `T12-token-held-contrast.png`, `T14-safe-debug-held.png` |
+| Commit loop | Pass |
+| Verify cost | Pass: 1 token and 3 s each time |
+| Window timeout | Pass: auto-Amber, penalty 3, logged missed |
+| Pause and resume | Pass: clock unchanged after 23 s |
+| Hard cap | Pass: 10 idle seeds end between 6:49 and 7:19 |
+| Determinism | Pass by repetition: the same scripted Module 1 and Module 2 runs gave identical scores twice (-32, -25) |
+
+Hands-only and accessibility checklist: hands only, one hand, sound off (silent build), greyscale, calm, tracking-loss freeze all pass. High contrast toggled mid-shift: toggling works while a shift is paused in the menu; I did not continue a full shift after a mid-shift toggle. Gaze-dwell: not shipped.
+
+Fingertip pokes: a real touch with the index fingertip (no pinch) works on a module button, the vitals card and Keep. Earlier runs used pinch-rays for buttons.
+
+Seated and field of view (computed from the layout, eye 40 cm above the table and 40 cm behind the ward centre; not measured on a headset):
+- Reach: the farthest targets (advisor plinths) are about 55 cm in front of the head. Pass on paper.
+- Vertical: from the footer (about 62 degrees below eye level) to the top of the speech panel (about eye level): about 61 degrees. Inside 66 degrees only if the player looks down about 30 degrees. With Big text the panel top rises and the span is about 67 degrees, slightly over.
+- Horizontal: the ward's near corners are about 34 degrees either side: 68 degrees, just inside 70.
+- Text size: panels meet the rule scaled for distance; button labels and the drift tag do not (about 1 cm capitals).
+
+Cannot be checked here (remote Quest tester): frame rate, cold start time, real pinch and poke accuracy, real plane detection, 20 minutes without a crash, fresh-profile play on the headset.
+
+## Stage D2: submission text against the shipped game
+`python3 tools/check-submission.py`: taglines 114, 112, 118 characters OK; description 492 words OK; voice-over 177 words.
+
+Mismatches in `docs/09-submission-kit.md` for the owner to fix (I did not edit it):
+1. **"Every sound has a visual twin."** The game has no sound. Either remove the sentence or say the game is silent with visual cues for every event. The voice-over note "leaves room for gameplay sound" has the same problem.
+2. **Gaze-dwell** ("[IF SHIPPED] A gaze-dwell mode…", and "Gaze-dwell and one-hand modes replace pokes and grabs" in the hand-interactions text): not shipped. Remove both.
+3. **"one-hand modes"**: there is no mode. Every action works with one hand by default. "One-hand play" in the description is accurate; the hand-interactions sentence is not.
+4. **Daily seeded shift** ("[IF SHIPPED] A daily seeded shift…"): not shipped. The seed is fixed (`ward-a`, or `?seed=`). Remove it. A day streak is recorded and shown, which could be mentioned instead.
+5. **AI coach** ("[IF SHIPPED] An optional AI coach…"): not shipped as of today. Remove unless T15 and T17 land.
+6. **"Immersive Web SDK 1.0"**: the installed version is 1.1.0-rc.2 (npm has no 1.0 tag).
+7. **"A table-edge menu pauses the game."** Accurate, but it is a Pause button plus a Menu button for settings.
+8. **Video shot 1:35 to 1:55, "advisor wrong on a category, player notices"**: with seed `ward-a` the drifted advisor (Ledger, cardiac) leads only one later patient and is right there, so the footage shows the "update installed" tag but not a visible mistake.
+9. **Video shot 0:55 to 1:15, "Orator gives a long confident wrong answer"**: with seed `ward-a` Orator is right every time it leads. It is wrong as a second opinion on patient 1, which is what the footage kit shows.
+10. **[CONFIRM AFTER BUILD] plane detection with virtual-table fallback**: true in the emulator. Real-room behaviour is untested.
+11. Testing statement: everything is emulator only. Do not write "tested on Quest".
+
+Accurate as written: four advisors and their descriptions, second-opinion tokens that cost clock time, unspent tokens score, the "update installed" badge, Calibration index with over and under rates, a finding, a next step and a trust map, shape-coded trays, high contrast, calm mode, pause and resume, about seven minutes for the full shift, offline play, fictional patients and the footer.
+
+## Stage D3: footage kit (11 Nov)
+`submission/footage/`: 16 stills from one scripted Module 3 run (score 179, index 100, 0 errors), a README mapping them to the storyboard, and the script to replay it for screen recording. Limits with seed `ward-a` are listed in that README.
+
+## Stage D4: `rc1` not tagged, waiting for the owner
+The condition is a fresh-profile test on the live URL that includes a full shift and the debrief. From here the live URL can only be loaded (0 failed requests, 0 console errors, start screen shows). Playing a shift on the deployed build needs a headset: the emulator is only part of the dev server, and a desktop browser has no WebXR. A full shift on the same code passes in the local emulator.
+
+## Copy note for Astra (data lane)
+`data/debrief-lines.json` nextStep.balanced says "Next: try the daily shift and beat your index." There is no daily shift (fixed seed). It showed in the footage run debrief.
 
 ## Open issues
 - The drift tag is small (capitals about 1.05 cm) and its second row is slightly clipped by the tray edge. It is meant to be easy to miss, but check it on a headset.

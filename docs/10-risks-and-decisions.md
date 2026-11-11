@@ -89,3 +89,11 @@ Broke or unknown: external drive dropped once mid-run (no data lost). Dev server
 Decisions: all modules selectable; history via src/game/localDate.ts; no separate one-hand mode (every action already works one-handed); calm applies from the next shift; drift tag lies flat on the rail.
 Tomorrow: Gate 2 check, T14, then T17 once Astra's T15 is merged.
 ```
+
+```
+Date: Wed 11 Nov 2026  Build tag: gate2+t14  Tester: Claude Code  Device: emulator
+Passed: Gate 2 (tag gate2), T09 merged, T14, QA D1, submission check D2, footage kit D3. 93 tests, parity 0 diffs, five shifts in a row with 0 console errors.
+Failed or not done: T10 sound (no brief), T17 coach (no T15), gaze-dwell (cut), rc1 (needs a shift on the live URL, which needs a headset).
+New bugs (severity): none S0 or S1. S2: button labels and drift tag text under the size rule; ward corners overhang a round table.
+Top 3 things the fresh player struggled with: not tested, no fresh player yet.
+```
