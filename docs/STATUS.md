@@ -150,7 +150,7 @@ The condition is a fresh-profile test on the live URL that includes a full shift
 6. **`rc1`** tagged on the emulator bar: full local shifts in all three modules, live URL loads clean, four checks green. The debug overlay's build tag reads `rc1`.
 
 ## Stage 2: tester kit (11 Nov)
-`submission/tester-kit/`: `README.md` (script: Module 1 then Module 3, think aloud, debug and safe links, how to record and screenshot), `feedback-form.md` (23 questions plus setup and build tag), `known-issues.md`, `hardware-unknowns.md`. No personal information. The Quest menu steps for recording are written from memory of the Quest interface and were not checked on a device.
+`submission/tester-kit/`: `README.md` (script: Module 1 then Module 3, think aloud, debug and safe links, how to record and screenshot), `feedback-form.md` (23 questions plus setup and build tag), `known-issues.md`, `hardware-unknowns.md`. No personal information. The recording, photo and hand-tracking steps were checked against Meta's help pages on 11 Nov 2026 (linked in the README) and reworded to match. Two items are marked "unverified, ask your own headset" because the pages do not cover them: microphone audio in recordings, and getting files off the headset. Meta's pages only describe starting a recording with a controller, so the script starts the recording before the controllers are put down. None of this was tried on a device. The README also asks for the build tag from `?debug=1`.
 
 ## Stages 3 and 4: waiting
 - Coach: `agent/core` has no T15 as of 11 Nov. Nothing built.
