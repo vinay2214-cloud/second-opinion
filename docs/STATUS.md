@@ -1,4 +1,4 @@
-# Status (scene lane, Claude Code)
+# Status (scene lane, Claude Code; from 11 Nov also the former Argon cards T10, T11, T16)
 
 Everything here is **emulator only** (IWSDK emulator, emulated hands). Nothing has been run on a Quest.
 Evidence paths are under `spikes/evidence/`. Last update: Wed 11 Nov 2026.
@@ -16,12 +16,14 @@ Evidence paths are under `spikes/evidence/`. Last update: Wed 11 Nov 2026.
 | T09 trust map (Astra's model, my view) | Merged and shown on the debrief | `T09-debrief-review.png`, `T09-trust-map.png` |
 | T10 sound | Not started: no audio brief in `proposals/` | `spikes/S6.md` (API works, unheard) |
 | T14 polish, debug, safe mode | Done except the items listed below | `T14-*.png` |
-| T17 coach button | Blocked: Astra's T15 is not merged | |
+| T15 coach client and proxy (Astra) | Merged into `main` (`0034e0a`). Worker not deployed; no proxy URL set | |
+| T17 coach button | Built; tested against a mock proxy only. Off in the live build until the owner sets `VITE_COACH_PROXY_URL` | `T17-*.png` |
 | Stage D: QA, submission check, footage kit | D1 to D3 done; D4 (`rc1`) waits for the owner | `submission/footage/` |
 
 ## A0 sync
 - 10 Nov: `agent/core` had nothing after T05.
 - 11 Nov: `agent/core` gained T09 (`fd93d53`) and the debrief copy fix (`be35fcb`). Trial merge on a throwaway branch: 93 tests passed, parity 0 diffs, tsc clean, build OK, core-spec 40/40. Merged into `main` with no conflicts. **T15 (coach) is not on the branch yet**, so Stage C is blocked.
+- 11 Nov, later: `agent/core` gained T15 (`cd4c6fb` debrief copy, `efef0ac` coach client and Worker proxy). Trial merge on a throwaway branch: **133 tests passed, parity 0 diffs, tsc clean, build OK**, core-spec 40/40, no conflicts. Merged and pushed as `0034e0a`. The copy note at the bottom of this file ("daily shift") is fixed by `cd4c6fb`.
 - The debrief now has two views: the review, and a trust map listing each observed advisor and category ("you followed 0 of 2, Dash was right 2"). The Keep button becomes Map / Review on the debrief.
 
 ## Gate 2 (11 Nov): green, tagged `gate2`
@@ -82,8 +84,35 @@ Not shipped in T12:
 - Frame rate on device: cannot be measured in the emulator. The debug overlay exists so the Quest tester can report it.
 - Button labels ("Pause", "Keep", "Menu", "Centre") have capitals of about 1 cm, under the 1.2 cm rule.
 
-## Stage C: T17 coach button: blocked
-`agent/core` has no T15 (coach client and proxy) as of 11 Nov. Nothing is built: there is no coach button and no network call anywhere in the game. If T15 lands before the freeze I will trial-merge and do T17; otherwise the coach is cut and the submission text must not mention it.
+## Stage C: coach wiring and T17 (11 Nov, emulator and mock proxy only)
+**No real proxy and no real model were used.** The Worker is not deployed and no API key was read, printed or asked for. Every result below is against a local stand-in server on `127.0.0.1` that returns canned replies.
+
+**Build wiring.** `.github/workflows/deploy.yml` passes the repository variable `VITE_COACH_PROXY_URL` into the build step. The variable is not set, so the live build has no coach button. When the owner sets it (Settings, Secrets and variables, Actions, Variables) the next push or a manual workflow run turns the button on. It is a public URL, not a secret.
+
+**What shipped (only when the URL is set):**
+- An "Ask the coach" button on the table edge, left, above Pause. It exists only on the debrief. The review panel gains the line "Ask the coach: Sends your shift summary numbers (no personal data) to an AI service." (`consentNotice` from `data/coach-prompt.json`). `T17-02-consent-notice.png`.
+- A press builds the facts with `buildCoachFacts` and calls `askCoach`. The debrief panel shows a card: "Coach is thinking" with a turning ring on the button (`T17-08-thinking.png`), then either "Coach (AI)" with the text (`T17-06-success-coach-ai.png`) or "Coach" with "The coach is offline. Here is your summary." and the template headline and next step.
+- One request per shift. A second press reopens the same card (`[coach] reopened (no new request)`). Back returns to the review; Map and the module buttons work while waiting.
+- If the browser says it is offline, no request is attempted and the template shows at once.
+- Files: `src/ui/coachUi.ts` (new), `src/game/systems/ShiftSystem.ts`, `src/game/components.ts`. Nothing in `src/core`, `src/coach` or `src/scene` changed.
+
+**Tests (idle Module 2 shifts at 16x dev clock, seed `ward-a`, so the facts were always "not enough data"):**
+| Case | Result | Evidence |
+|---|---|---|
+| URL unset | No button, no `[coach]` log line, debrief text as before, same score (-14) as with the URL set | `T17-01-coach-off-debrief.png` |
+| Airplane mode (simulated in the page: `navigator.onLine` false and the proxy route cut) | Template with the offline line, 0 requests, 0 console errors | `T17-04-airplane-fallback.png` |
+| Nothing listening at the URL | Template with the offline line | `T17-03-unreachable-fallback.png` |
+| Mock kill switch (503) | Template with the offline line | `T17-05-killswitch-503-fallback.png` |
+| Mock reply slower than 3 s | Template at 3.0 s (`asked` 07:55:40.053, `shown` 07:55:43.055) | `T17-09-timeout-fallback.png` |
+| Mock reply with a number and "diagnosis" | Rejected (`reason=blocked: diagnos`), template shown | `T17-10-invalid-text-fallback.png` |
+| Mock success | "Coach (AI)" card with the text; one POST of 177 bytes | `T17-06-success-coach-ai.png` |
+| No request before the press | Mock request log empty from page load to the press in every run | |
+
+Limits of these tests:
+- In the three cases where a request is sent and fails (nothing listening, 503, timeout) the browser itself writes one or two network lines to the console at error level ("Failed to load resource", "net::ERR_ABORTED"). The game logs no error and shows no error screen, but the console is not empty. Page code cannot suppress those lines. Only the true-offline case is free of them.
+- Real airplane mode could not be used: putting the managed browser offline makes the emulator relaunch it. The offline case is simulated inside the page.
+- Presses were pinch-rays with one hand. Not run: a fingertip poke on this button, high contrast and big text with the coach card open, a played (non-idle) shift with the coach on, and anything on a headset.
+- The real proxy's origin allowlist, rate limit and kill switch are Astra's unit tests (`tests/coachProxy.test.ts`); nothing here exercised a deployed Worker.
 
 ## Stage D1: QA from docs/08 (11 Nov, emulator only)
 Automated:
@@ -122,7 +151,7 @@ Mismatches in `docs/09-submission-kit.md` for the owner to fix (I did not edit i
 2. **Gaze-dwell** ("[IF SHIPPED] A gaze-dwell mode…", and "Gaze-dwell and one-hand modes replace pokes and grabs" in the hand-interactions text): not shipped. Remove both.
 3. **"one-hand modes"**: there is no mode. Every action works with one hand by default. "One-hand play" in the description is accurate; the hand-interactions sentence is not.
 4. **Daily seeded shift** ("[IF SHIPPED] A daily seeded shift…"): not shipped. The seed is fixed (`ward-a`, or `?seed=`). Remove it. A day streak is recorded and shown, which could be mentioned instead.
-5. **AI coach** ("[IF SHIPPED] An optional AI coach…"): not shipped as of today. Remove unless T15 and T17 land.
+5. **AI coach** ("[IF SHIPPED] An optional AI coach…"): built, but off in the live build until the proxy is deployed and `VITE_COACH_PROXY_URL` is set. Keep the sentence only if that happens before the freeze and a real reply has been seen.
 6. **"Immersive Web SDK 1.0"**: the installed version is 1.1.0-rc.2 (npm has no 1.0 tag).
 7. **"A table-edge menu pauses the game."** Accurate, but it is a Pause button plus a Menu button for settings.
 8. **Video shot 1:35 to 1:55, "advisor wrong on a category, player notices"**: with seed `ward-a` the drifted advisor (Ledger, cardiac) leads only one later patient and is right there, so the footage shows the "update installed" tag but not a visible mistake.
@@ -153,7 +182,7 @@ The condition is a fresh-profile test on the live URL that includes a full shift
 `submission/tester-kit/`: `README.md` (script: Module 1 then Module 3, think aloud, debug and safe links, how to record and screenshot), `feedback-form.md` (23 questions plus setup and build tag), `known-issues.md`, `hardware-unknowns.md`. No personal information. The recording, photo and hand-tracking steps were checked against Meta's help pages on 11 Nov 2026 (linked in the README) and reworded to match. Two items are marked "unverified, ask your own headset" because the pages do not cover them: microphone audio in recordings, and getting files off the headset. Meta's pages only describe starting a recording with a controller, so the script starts the recording before the controllers are put down. None of this was tried on a device. The README also asks for the build tag from `?debug=1`.
 
 ## Stages 3 and 4: waiting
-- Coach: `agent/core` has no T15 as of 11 Nov. Nothing built.
+- Coach: see Stage C above (built, off until the proxy URL is set).
 - Sound: no audio brief in `proposals/` as of 11 Nov. Silent.
 
 ## Open issues

@@ -17,11 +17,16 @@ import {
 import { access, type ToggleKey } from '../../access/access.js';
 import type { GhostHand } from '../../access/ghostHand.js';
 import { Tutorial } from '../../access/Tutorial.js';
+import { askCoach } from '../../coach/coachClient.js';
+import { COACH_AVAILABLE } from '../../coach/config.js';
+import { buildCoachFacts, type CoachAdvisor, type CoachText, coachFallback } from '../../core/coach.js';
 import { advisorData, loadCases, shiftConfig } from '../../core/data.js';
 import {
   type AdvisorId,
   buildShift,
   createShiftRuntime,
+  type Debrief,
+  type LogEntry,
   type ModuleId,
   type PublicAdvice,
   type RuntimeEvent,
@@ -41,11 +46,13 @@ import {
   TEXT_EM,
 } from '../../scene/shiftUi.js';
 import type { WardParts } from '../../scene/ward.js';
+import { buildCoachButton, coachLines, coachOfferLines, type CoachUi } from '../../ui/coachUi.js';
 import { debriefLines, debriefSentences } from '../../ui/debriefText.js';
 import type { PanelLine } from '../../ui/TextPanel.js';
 import { trustMapLines } from '../../ui/trustMapText.js';
 import {
   AdvisorPlinth,
+  CoachButton,
   KeepButton,
   PauseButton,
   SettingsButton,
@@ -120,6 +127,7 @@ export class ShiftSystem extends createSystem({
   pausePressed: { required: [PauseButton, Pressed] },
   settingsPressed: { required: [SettingsButton, Pressed] },
   togglePressed: { required: [SettingToggle, Pressed] },
+  coachPressed: { required: [CoachButton, Pressed] },
 }) {
   /** Set by bootstrap before registration. */
   static ui: ShiftUiParts;
@@ -192,6 +200,19 @@ export class ShiftSystem extends createSystem({
   private notice = '';
   private noticeUntil = 0;
   private names: Partial<Record<AdvisorId, string>> = {};
+  /**
+   * Optional AI coach (T17). `coach` stays null unless a proxy URL was built in,
+   * and then nothing below runs. A request is sent only from askTheCoach(), which
+   * only a press of the Coach button on the debrief reaches; once per shift.
+   */
+  private coach: CoachUi | null = null;
+  private coachEntity: Entity | null = null;
+  private coachShown = false;
+  private coachRequested = false;
+  private coachState: 'idle' | 'thinking' | 'done' = 'idle';
+  private coachText: CoachText | null = null;
+  private coachOpen = false;
+  private coachSummary: { debrief: Debrief; entries: LogEntry[] } | null = null;
 
   init(): void {
     this.ui = ShiftSystem.ui;
@@ -259,6 +280,20 @@ export class ShiftSystem extends createSystem({
     for (const entity of [...ShiftSystem.startEntities, ...ShiftSystem.toggleEntities, ShiftSystem.cardEntity]) {
       entity.setValue(Visibility, 'isVisible', false);
     }
+    if (COACH_AVAILABLE) {
+      this.coach = buildCoachButton();
+      ShiftSystem.ward.content.add(this.coach.root);
+      this.coachEntity = this.world
+        .createTransformEntity(this.coach.root, { parent: TokenSystem.contentEntity })
+        .addComponent(CoachButton);
+      this.coachEntity.setValue(Visibility, 'isVisible', false);
+      this.cleanupFuncs.push(
+        this.queries.coachPressed.subscribe('disqualify', () => {
+          this.coachRequested = true;
+        }),
+      );
+      console.info('[coach] button available');
+    }
     this.applyAccess();
   }
 
@@ -304,6 +339,12 @@ export class ShiftSystem extends createSystem({
     const playing = this.started && !this.ended;
     const inXR = this.world.visibilityState.peek() !== VisibilityState.NonImmersive;
     const ready = inXR && this.placement.isPlaced;
+    if (this.coach) {
+      this.showCoachButton(this.ended && ready && !this.settingsOpen);
+      if (this.coachState === 'thinking') {
+        this.coach.ring.rotation.z -= delta * 4;
+      }
+    }
     this.setRow(
       this.settingsOpen ? 'toggles' : !ready ? 'none' : !playing ? 'starts' : this.stage.has(this.focus) ? 'card' : 'none',
     );
@@ -370,6 +411,8 @@ export class ShiftSystem extends createSystem({
   private updateIdle(ready: boolean): void {
     const asked = this.startRequested;
     const flip = this.keepRequested;
+    const ask = this.coachRequested;
+    this.coachRequested = false;
     this.startRequested = 0;
     this.pauseRequested = false;
     this.keepRequested = false;
@@ -382,16 +425,27 @@ export class ShiftSystem extends createSystem({
     // Redraw at most four times a second (and at once after any input).
     this.refreshIn -= this.clock - this.idleClock;
     this.idleClock = this.clock;
-    if (this.refreshIn > 0 && !flip) {
+    if (this.refreshIn > 0 && !flip && !ask) {
       return;
     }
     this.refreshIn = REFRESH_SEC;
     if (this.ended) {
-      // On the debrief the Keep button switches between the review and the trust map.
+      if (ask && this.coachShown) {
+        this.askTheCoach();
+      }
+      // On the debrief the Keep button switches between the review and the trust map
+      // (and leaves the coach card, back to the review).
       if (flip && !this.settingsOpen) {
-        this.mapOpen = !this.mapOpen;
+        this.mapOpen = !this.coachOpen && !this.mapOpen;
+        this.coachOpen = false;
         showButtonLabel(this.ui.keep, this.mapOpen ? 2 : 1);
         console.info(`[debrief] view=${this.mapOpen ? 'trust map' : 'review'}`);
+      }
+      if (this.coachOpen) {
+        // The dots step twice a second while waiting; a finished card is drawn once.
+        const phase = this.coachText ? 0 : Math.floor(this.clock * 2);
+        this.ui.debrief.set(`coach-${this.coachState}-${phase}`, coachLines(this.coachText, phase));
+        return;
       }
       this.ui.debrief.set(this.mapOpen ? 'map' : 'debrief', this.mapOpen ? this.mapLines : this.debriefShown);
       return;
@@ -491,6 +545,91 @@ export class ShiftSystem extends createSystem({
     this.refreshIn = 0;
   }
 
+  // ---- optional AI coach (T17) -------------------------------------------
+
+  /** The button exists only on the debrief; hidden, it takes no pokes. */
+  private showCoachButton(on: boolean): void {
+    const entity = this.coachEntity;
+    if (!entity || on === this.coachShown) {
+      return;
+    }
+    this.coachShown = on;
+    entity.setValue(Visibility, 'isVisible', on);
+    if (on) {
+      if (!entity.hasComponent(RayInteractable)) entity.addComponent(RayInteractable);
+      if (!entity.hasComponent(PokeInteractable)) entity.addComponent(PokeInteractable);
+    } else {
+      if (entity.hasComponent(RayInteractable)) entity.removeComponent(RayInteractable);
+      if (entity.hasComponent(PokeInteractable)) entity.removeComponent(PokeInteractable);
+    }
+  }
+
+  /**
+   * The player pressed the Coach button. The first press of a shift sends the
+   * one request; later presses reopen the same card. The debrief stays usable
+   * while waiting (Back, Map and the module buttons all still work).
+   */
+  private askTheCoach(): void {
+    const summary = this.coachSummary;
+    if (!this.coach || !summary) {
+      return;
+    }
+    this.coachOpen = true;
+    this.mapOpen = false;
+    showButtonLabel(this.ui.keep, 2); // "Back"
+    if (this.coachState !== 'idle') {
+      console.info('[coach] reopened (no new request)');
+      return;
+    }
+    this.coachState = 'thinking';
+    this.coach.ring.visible = true;
+    const show = (result: CoachText): void => {
+      if (this.coachSummary !== summary) {
+        return; // a new shift began while waiting
+      }
+      this.coachText = result;
+      this.coachState = 'done';
+      if (this.coach) {
+        this.coach.ring.visible = false;
+        this.coach.cap.color.setHex(PALETTE.button);
+      }
+      this.refreshIn = 0;
+      console.info(
+        `[coach] shown source=${result.source}${result.source === 'template' ? ` reason=${result.reason}` : ''}`,
+      );
+    };
+    console.info('[coach] asked');
+    // Known to be offline (airplane mode): the template at once, and no request at all.
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      show({ source: 'template', text: coachFallback(summary.debrief), reason: 'offline' });
+      return;
+    }
+    try {
+      const facts = buildCoachFacts({
+        debrief: summary.debrief,
+        entries: summary.entries,
+        shift: this.shift,
+        advisorNames: this.names as Partial<Record<AdvisorId, CoachAdvisor>>,
+      });
+      // askCoach never rejects: any failure resolves to the template text.
+      void askCoach(facts, summary.debrief).then(show);
+    } catch {
+      show({ source: 'template', text: coachFallback(summary.debrief), reason: 'facts' });
+    }
+  }
+
+  private resetCoach(): void {
+    this.coachSummary = null;
+    this.coachState = 'idle';
+    this.coachText = null;
+    this.coachOpen = false;
+    this.coachRequested = false;
+    if (this.coach) {
+      this.coach.ring.visible = false;
+      this.coach.cap.color.setHex(PALETTE.keepOn);
+    }
+  }
+
   /** Only the visible near-edge row takes pokes; hidden targets must not. */
   private setRow(row: 'none' | 'starts' | 'toggles' | 'card'): void {
     if (row === this.row) {
@@ -562,6 +701,7 @@ export class ShiftSystem extends createSystem({
     showButtonLabel(this.ui.pause, 0);
     showButtonLabel(this.ui.keep, 0);
     this.mapOpen = false;
+    this.resetCoach();
     this.ui.keep.cap.color.setHex(PALETTE.button);
     this.keepEnabled = false;
     this.ui.debrief.mesh.visible = false;
@@ -741,11 +881,16 @@ export class ShiftSystem extends createSystem({
       em: TEXT_EM.debrief,
       color: '#9ec1ff',
     });
-    lines.push({
-      text: 'Poke Map for your trust map, or a module to play again.',
-      em: TEXT_EM.debrief,
-      color: '#9ec1ff',
-    });
+    if (this.coach) {
+      this.coachSummary = { debrief, entries };
+      lines.push(...coachOfferLines());
+    } else {
+      lines.push({
+        text: 'Poke Map for your trust map, or a module to play again.',
+        em: TEXT_EM.debrief,
+        color: '#9ec1ff',
+      });
+    }
     this.debriefShown = lines;
     this.ui.debrief.set('debrief', lines);
     this.ui.debrief.mesh.visible = true;

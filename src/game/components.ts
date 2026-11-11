@@ -42,3 +42,5 @@ export const SettingToggle = createComponent('SettingToggle', {
 });
 /** Keep button: confirms the committed call. */
 export const KeepButton = createComponent('KeepButton', {});
+/** Ask the coach: optional, shown on the debrief only when a proxy URL was built in (T17). */
+export const CoachButton = createComponent('CoachButton', {});
