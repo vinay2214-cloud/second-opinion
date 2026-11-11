@@ -38,13 +38,13 @@ export interface ShiftUiParts {
   card: TextPanel;
   speech: TextPanel;
   debrief: TextPanel;
-  /** labels: Keep (during a shift), Map and Review (on the debrief). */
+  /** labels: Keep (during a shift), Map and Back (on the debrief). */
   keep: ButtonParts;
   /** One start button per module, left to right: Module 1, 2, 3. */
   starts: ButtonParts[];
-  /** labels[0] = "Pause", labels[1] = "Resume". */
+  /** labels[0] = "Pause", labels[1] = "Play". */
   pause: ButtonParts;
-  /** Opens the settings row. labels[0] = "Menu", labels[1] = "Close". */
+  /** Opens the settings row. labels[0] = "Menu", labels[1] = "Done". */
   settings: ButtonParts;
   /** Shown in place of the card while settings are open. labels[0] = off, labels[1] = on. */
   toggles: Array<{ key: ToggleKey; parts: ButtonParts }>;
@@ -66,7 +66,8 @@ function button(
   // A text may hold two rows ("name\nstate"); each row is its own flat label.
   const labels = texts.map((text, i) => {
     const rows = text.split('\n');
-    const rowDepth = Math.min((depth * 0.92) / rows.length, 0.024);
+    // 2.6 cm rows give capitals of about 1.3 cm: the 1.2 cm rule scaled to these buttons' 53 cm distance.
+    const rowDepth = Math.min((depth * 0.92) / rows.length, 0.026);
     const group = new Group();
     rows.forEach((row, r) => {
       const label = createFlatLabel(row, {
@@ -122,8 +123,8 @@ export function buildShiftUi(): ShiftUiParts {
   debrief.mesh.position.set(0, DEBRIEF_BASE_Y + 0.2 * Math.cos(DEBRIEF_TILT), -0.1);
   debrief.mesh.visible = false;
 
-  const keep = button('Keep Button', 0.045, 0.045, ['Keep', 'Map', 'Review'], PALETTE.button);
-  keep.root.position.set(0.19, 0.005, 0.098);
+  const keep = button('Keep Button', 0.05, 0.045, ['Keep', 'Map', 'Back'], PALETTE.button);
+  keep.root.position.set(0.185, 0.005, 0.098);
 
   // Where the card will be; only shown before the first patient. 9 cm wide, 2 cm gaps.
   const starts = [1, 2, 3].map((n, i) => {
@@ -138,11 +139,11 @@ export function buildShiftUi(): ShiftUiParts {
     parts.root.position.set(-0.1705 + i * 0.094, 0.005, 0.13);
     return { key, parts };
   });
-  const settings = button('Settings Button', 0.045, 0.04, ['Menu', 'Close'], PALETTE.button);
-  settings.root.position.set(0.2575, 0.005, 0.09);
+  const settings = button('Settings Button', 0.052, 0.04, ['Menu', 'Done'], PALETTE.button);
+  settings.root.position.set(0.26, 0.005, 0.09);
 
-  const pause = button('Pause Button', 0.045, 0.045, ['Pause', 'Resume'], PALETTE.button);
-  pause.root.position.set(-0.25, 0.005, 0.15);
+  const pause = button('Pause Button', 0.066, 0.045, ['Pause', 'Play'], PALETTE.button);
+  pause.root.position.set(-0.262, 0.005, 0.15);
 
   return { card, speech, debrief, keep, starts, pause, settings, toggles };
 }
@@ -161,28 +162,31 @@ export function labelPlinth(plinth: Object3D, name: string, onDuty: boolean): Me
 }
 
 /**
- * Drift cue: a small two-line 'update installed' tag on the rail in front of
- * an advisor's name (docs/02 section 7). Quiet by design: capitals about
- * 1.05 cm tall, a little under the usual text rule.
+ * Drift cue (docs/02 section 7): a muted standing tag in front of one advisor,
+ * "<name> / update / installed". It takes the place of that advisor's name
+ * label while shown (ShiftSystem hides the label), so nothing is covered.
+ * Rows are 3 cm tall: capitals about 1.5 cm, the 1.2 cm rule scaled to 62 cm.
+ * It is about as wide as the plinth pitch, so the neighbours' names stay readable.
  */
-export function buildDriftBadge(plinth: Object3D, text: string): Group {
+export function buildDriftBadge(plinth: Object3D, name: string, text: string): Group {
   const badge = new Group();
   const words = text.split(' ');
   const half = Math.ceil(words.length / 2);
-  const row = 0.021;
-  [words.slice(0, half).join(' '), words.slice(half).join(' ')].forEach((line, i) => {
+  const rows = [name, words.slice(0, half).join(' '), words.slice(half).join(' ')];
+  const row = 0.03;
+  rows.forEach((line, i) => {
     const label = createFlatLabel(line, {
-      width: 0.088,
+      width: 0.094,
       height: row,
-      color: '#0b1220',
-      background: '#c9d6ea',
+      color: i === 0 ? PALETTE.text : '#0b1220',
+      background: i === 0 ? '#23395b' : '#c9d6ea',
     });
-    label.position.z = (i - 0.5) * row;
+    label.position.z = (i - 1) * row;
     badge.add(label);
   });
-  // Flat on the floor in the 4 cm strip between the name label and the trays,
-  // so it hides neither the name nor the speech panel.
-  badge.position.set(0, 0.002, 0.076);
+  // Tilted 45 degrees toward the player, bottom edge on the rail's front edge.
+  badge.rotation.x = Math.PI / 4;
+  badge.position.set(0, 0.036, 0.062);
   badge.visible = false;
   plinth.add(badge);
   return badge;

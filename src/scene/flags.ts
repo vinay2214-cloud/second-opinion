@@ -12,7 +12,7 @@ const dev = import.meta.env.DEV;
 export const DEBUG = query.get('debug') === '1' || (dev && DEV_FORCE.debug);
 export const SAFE = query.get('safe') === '1' || (dev && DEV_FORCE.safe);
 /** Shown by the debug overlay so a tester's screenshot identifies the build. */
-export const BUILD_TAG = 'gate2+t14';
+export const BUILD_TAG = 'rc1';
 
 interface MaterialLike {
   transparent: boolean;

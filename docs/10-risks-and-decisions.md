@@ -97,3 +97,8 @@ Failed or not done: T10 sound (no brief), T17 coach (no T15), gaze-dwell (cut), 
 New bugs (severity): none S0 or S1. S2: button labels and drift tag text under the size rule; ward corners overhang a round table.
 Top 3 things the fresh player struggled with: not tested, no fresh player yet.
 ```
+
+```
+Date: Wed 11 Nov 2026 (later)  Build tag: rc1  Device: emulator
+Done: Stage 1 fixes (labels, drift tag, safe-mode shift, mid-shift contrast, card open-only), tag rc1, tester kit. Waiting: T15 for the coach, audio brief for sound, tester feedback.
+```

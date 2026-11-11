@@ -38,6 +38,6 @@ export function trustMapLines(
   if (rows.length > MAX_ROWS) {
     lines.push({ text: `and ${rows.length - MAX_ROWS} more`, em, color: '#9ec1ff' });
   }
-  lines.push({ text: 'Poke Review to go back.', em, color: '#ffd166' });
+  lines.push({ text: 'Poke Back for the review.', em, color: '#ffd166' });
   return lines;
 }

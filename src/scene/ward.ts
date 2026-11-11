@@ -195,17 +195,17 @@ export function buildWard(): WardParts {
 
   const recentreButton = new Group();
   recentreButton.name = 'Re-centre Button';
-  const cap = new Mesh(new BoxGeometry(0.05, 0.012, 0.05), lambert(PALETTE.button));
+  const cap = new Mesh(new BoxGeometry(0.074, 0.012, 0.04), lambert(PALETTE.button));
   cap.position.y = 0.006;
   recentreButton.add(cap);
   const capLabel = createFlatLabel('Centre', {
-    width: 0.046,
-    height: 0.012,
+    width: 0.07,
+    height: 0.026,
     color: PALETTE.text,
   });
   capLabel.position.y = 0.0125;
   recentreButton.add(capLabel);
-  recentreButton.position.set(0.255, 0.005, 0.16);
+  recentreButton.position.set(0.26, 0.005, 0.165);
   content.add(recentreButton);
 
   const footer = createFlatLabel('Fictional game logic. Not medical advice.', {

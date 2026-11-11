@@ -141,10 +141,16 @@ The condition is a fresh-profile test on the live URL that includes a full shift
 ## Copy note for Astra (data lane)
 `data/debrief-lines.json` nextStep.balanced says "Next: try the daily shift and beat your index." There is no daily shift (fixed seed). It showed in the footage run debrief.
 
+## Stage 1 fixes and `rc1` (11 Nov, emulator only)
+1. **Button labels:** Pause, Keep, Menu and Centre now have 2.6 cm label rows (capitals about 1.3 cm; the rule scaled to their 53 cm distance is 1.27 cm). Buttons were widened to fit; gaps stay at 2 cm or more. Toggled words were shortened to fit: Resume is now "Play", Close is "Done", Review is "Back". `S1-drift-tag-and-labels.png`.
+2. **Drift tag:** now a standing three-row tag in front of the advisor: name, "update", "installed". Rows are 3 cm (capitals about 1.25 to 1.5 cm). It replaces that advisor's name label while shown, is not clipped by the trays, and stays clear of the speech panel and the neighbours' names. Muted colours as before. `S1-safe-drift-cue.png`.
+3. **Full shift in `?safe=1`:** pass. Module 3, 14 patients, hands only, `[boot] debug=false safe=true`, console `{"info":89}`, 0 errors, `[debrief] match=true`. `S1-safe-advice.png`, `S1-safe-drift-cue.png`, `S1-safe-debrief.png`.
+4. **Mid-shift high-contrast toggle:** pass. Module 1, contrast switched on while patient 2 was committed and waiting; that patient kept its call and resolved normally, the shift finished, 0 errors. `S1-contrast-toggled-mid-shift.png`.
+5. **Card reach-through:** fixed by design instead of measured. A poke now only opens the vitals; nothing closes them by poke, so a hand passing over the card toward the lane cannot hide them. The tutorial closes them once at its start so it can teach the poke. An accidental open is harmless.
+6. **`rc1`** tagged on the emulator bar: full local shifts in all three modules, live URL loads clean, four checks green. The debug overlay's build tag reads `rc1`.
+
 ## Open issues
-- The drift tag is small (capitals about 1.05 cm) and its second row is slightly clipped by the tray edge. It is meant to be easy to miss, but check it on a headset.
 - The ghost hand is a simple blocky shape and can be hard to read against the card.
-- Button labels "RE-CENTRE", "Pause", "Keep", "Menu" are below the 1.2 cm text rule (T14).
 - The live site cannot be played in a plain desktop browser (no WebXR there), so "fresh profile" checks on the live URL cover loading and console errors only. Full shifts are verified in the local emulator.
 - For the remote Quest tester: poke accuracy on 4.5 cm buttons; accidental card pokes when reaching for the lane; speech text legibility at about 65 cm; whether the tracking-loss freeze triggers when hands rest in the lap.
 

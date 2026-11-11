@@ -108,7 +108,7 @@ export interface PlinthView {
   stand: { emissive: { setHex(hex: number): void } };
   body: { color: { setHex(hex: number): void } };
   /** Set by ShiftSystem. */
-  label?: { material: unknown };
+  label?: { material: unknown; visible: boolean };
   badge?: { visible: boolean };
 }
 
@@ -209,7 +209,7 @@ export class ShiftSystem extends createSystem({
       const name = advisorData.advisors[id].name; // display name only
       this.names[id] = name;
       plinth.label = labelPlinth(plinth.entity.object3D!, name, true);
-      plinth.badge = buildDriftBadge(plinth.entity.object3D!, advisorData.drift.cueText);
+      plinth.badge = buildDriftBadge(plinth.entity.object3D!, name, advisorData.drift.cueText);
     }
     const rest = new Vector3();
     const up = (v: Vector3, y: number) => v.clone().setY(v.y + y);
@@ -232,9 +232,13 @@ export class ShiftSystem extends createSystem({
         this.keepRequested = true;
       }),
       this.queries.cardPressed.subscribe('disqualify', () => {
-        this.expanded = !this.expanded;
-        this.refreshIn = 0;
-        console.info(`[shift] card ${this.expanded ? 'expanded' : 'collapsed'}`);
+        // A poke opens the vitals and they stay open. There is no poke-to-close:
+        // a hand reaching over the card toward the lane must not hide them.
+        if (!this.expanded) {
+          this.expanded = true;
+          this.refreshIn = 0;
+          console.info('[shift] card expanded');
+        }
       }),
       this.queries.plinthPressed.subscribe('disqualify', (entity) => {
         this.verifyRequested = (entity.getValue(AdvisorPlinth, 'advisorId') ?? '') as AdvisorId;
@@ -455,7 +459,7 @@ export class ShiftSystem extends createSystem({
       { text: 'Calm: slower arrivals, longer windows.', em },
       { text: 'Big text: larger panels.', em },
       { text: 'One hand is enough for every action. Sound is off.', em, color: '#9ec1ff' },
-      { text: 'Poke Close to go back.', em, color: ACCENT },
+      { text: 'Poke Done to go back.', em, color: ACCENT },
     ];
     if (this.notice !== '' && this.clock < this.noticeUntil) {
       lines.push({ text: this.notice, em, bold: true, color: ACCENT });
@@ -570,6 +574,9 @@ export class ShiftSystem extends createSystem({
       (plinth.label?.material as { opacity: number }).opacity = onDuty ? 1 : 0.4;
       if (plinth.badge) {
         plinth.badge.visible = false;
+        if (plinth.label) {
+          plinth.label.visible = true;
+        }
       }
     }
     const calm = access.settings.calm;
@@ -577,6 +584,7 @@ export class ShiftSystem extends createSystem({
     this.started = true;
     this.tutorial.stop();
     if (module === 'module1' && access.tutorialOn) {
+      this.expanded = false; // the tutorial teaches the poke
       this.tutorial.start();
     }
     console.info(
@@ -749,6 +757,9 @@ export class ShiftSystem extends createSystem({
     for (const plinth of ShiftSystem.plinths) {
       if (plinth.badge) {
         plinth.badge.visible = false;
+        if (plinth.label) {
+          plinth.label.visible = true;
+        }
       }
     }
     this.applyAccess();
@@ -822,6 +833,9 @@ export class ShiftSystem extends createSystem({
     for (const plinth of ShiftSystem.plinths) {
       if (plinth.badge) {
         plinth.badge.visible = !!cue && cue.advisorId === plinth.advisorId;
+        if (plinth.label) {
+          plinth.label.visible = !plinth.badge.visible; // the tag carries the name
+        }
       }
     }
     if (cue && !this.driftShown) {
@@ -876,7 +890,7 @@ export class ShiftSystem extends createSystem({
       body.push(...this.settingsLines());
     } else if (this.freeze.pause) {
       body.push({ text: 'Paused', bold: true, em: head });
-      body.push({ text: 'Poke Resume to continue. The clock is stopped.', em });
+      body.push({ text: 'Poke Play to continue. The clock is stopped.', em });
     } else if (adviceShown && lead) {
       // One call line per advisor heard. Up to two quotes stay on screen:
       // the lead advisor's and the latest second opinion's.
