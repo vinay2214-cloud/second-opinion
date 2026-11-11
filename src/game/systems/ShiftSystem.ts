@@ -43,6 +43,7 @@ import {
 import type { WardParts } from '../../scene/ward.js';
 import { debriefLines, debriefSentences } from '../../ui/debriefText.js';
 import type { PanelLine } from '../../ui/TextPanel.js';
+import { trustMapLines } from '../../ui/trustMapText.js';
 import {
   AdvisorPlinth,
   KeepButton,
@@ -185,6 +186,8 @@ export class ShiftSystem extends createSystem({
   private resultLines: PanelLine[] = [];
   private resultShort: PanelLine | null = null;
   private debriefShown: PanelLine[] = [];
+  private mapLines: PanelLine[] = [];
+  private mapOpen = false;
   private notice = '';
   private noticeUntil = 0;
   private names: Partial<Record<AdvisorId, string>> = {};
@@ -361,6 +364,7 @@ export class ShiftSystem extends createSystem({
   /** Before the first shift and after a debrief: the module buttons are live. */
   private updateIdle(ready: boolean): void {
     const asked = this.startRequested;
+    const flip = this.keepRequested;
     this.startRequested = 0;
     this.pauseRequested = false;
     this.keepRequested = false;
@@ -371,7 +375,13 @@ export class ShiftSystem extends createSystem({
       return;
     }
     if (this.ended) {
-      this.ui.debrief.set('debrief', this.debriefShown);
+      // On the debrief the Keep button switches between the review and the trust map.
+      if (flip && !this.settingsOpen) {
+        this.mapOpen = !this.mapOpen;
+        showButtonLabel(this.ui.keep, this.mapOpen ? 2 : 1);
+        console.info(`[debrief] view=${this.mapOpen ? 'trust map' : 'review'}`);
+      }
+      this.ui.debrief.set(this.mapOpen ? 'map' : 'debrief', this.mapOpen ? this.mapLines : this.debriefShown);
       return;
     }
     const em = TEXT_EM.speech;
@@ -535,6 +545,10 @@ export class ShiftSystem extends createSystem({
     this.frozenTotalMs = 0;
     this.lostFor = 0;
     showButtonLabel(this.ui.pause, 0);
+    showButtonLabel(this.ui.keep, 0);
+    this.mapOpen = false;
+    this.ui.keep.cap.color.setHex(PALETTE.button);
+    this.keepEnabled = false;
     this.ui.debrief.mesh.visible = false;
     this.ui.speech.mesh.visible = true;
 
@@ -697,7 +711,9 @@ export class ShiftSystem extends createSystem({
     this.ended = true;
     this.firstShift = false;
     this.tutorial.stop();
-    const { score, debrief, tokensLeft } = this.runtime.summary();
+    const { score, debrief, tokensLeft, entries } = this.runtime.summary();
+    this.mapLines = trustMapLines(entries, this.shift.lineup);
+    this.mapOpen = false;
     const lines = debriefLines(debrief, score);
     // History and streak (T05). The date comes from localDate.ts, the only wall-clock read.
     const history = recordShift({ index: debrief.index, score: score.total }, localDate());
@@ -707,7 +723,7 @@ export class ShiftSystem extends createSystem({
       color: '#9ec1ff',
     });
     lines.push({
-      text: 'Poke a module button to play another shift.',
+      text: 'Poke Map for your trust map, or a module to play again.',
       em: TEXT_EM.debrief,
       color: '#9ec1ff',
     });
@@ -716,6 +732,8 @@ export class ShiftSystem extends createSystem({
     this.ui.debrief.mesh.visible = true;
     this.ui.speech.mesh.visible = false;
     this.setKeep(false);
+    showButtonLabel(this.ui.keep, 1);
+    this.ui.keep.cap.color.setHex(PALETTE.keepOn);
     this.highlightPlinths(null, []);
     for (const plinth of ShiftSystem.plinths) {
       if (plinth.badge) {

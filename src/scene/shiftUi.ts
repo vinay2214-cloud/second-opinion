@@ -38,6 +38,7 @@ export interface ShiftUiParts {
   card: TextPanel;
   speech: TextPanel;
   debrief: TextPanel;
+  /** labels: Keep (during a shift), Map and Review (on the debrief). */
   keep: ButtonParts;
   /** One start button per module, left to right: Module 1, 2, 3. */
   starts: ButtonParts[];
@@ -121,7 +122,7 @@ export function buildShiftUi(): ShiftUiParts {
   debrief.mesh.position.set(0, DEBRIEF_BASE_Y + 0.18 * Math.cos(DEBRIEF_TILT), -0.1);
   debrief.mesh.visible = false;
 
-  const keep = button('Keep Button', 0.045, 0.045, ['Keep'], PALETTE.button);
+  const keep = button('Keep Button', 0.045, 0.045, ['Keep', 'Map', 'Review'], PALETTE.button);
   keep.root.position.set(0.19, 0.005, 0.098);
 
   // Where the card will be; only shown before the first patient. 9 cm wide, 2 cm gaps.

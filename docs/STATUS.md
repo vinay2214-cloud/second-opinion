@@ -1,7 +1,7 @@
 # Status (scene lane, Claude Code)
 
 Everything here is **emulator only** (IWSDK emulator, emulated hands). Nothing has been run on a Quest.
-Evidence paths are under `spikes/evidence/`. Last update: Tue 10 Nov 2026.
+Evidence paths are under `spikes/evidence/`. Last update: Wed 11 Nov 2026.
 
 ## Where things stand
 | Card | Result | Evidence |
@@ -13,11 +13,23 @@ Evidence paths are under `spikes/evidence/`. Last update: Tue 10 Nov 2026.
 | T07 verify, HUD, pause, debrief | Done | `T07-*.png` |
 | T08 Module 3, surges, drift | Done | `T08-*.png`, `T08-10-seed-lengths.txt` |
 | T12 accessibility and onboarding | Done, see below | `T12-*.png` |
+| T09 trust map (Astra's model, my view) | Merged and shown on the debrief | `T09-debrief-review.png`, `T09-trust-map.png` |
 | T10 sound | Not started: no audio brief in `proposals/` | `spikes/S6.md` (API works, unheard) |
 | T14, T17, Stage D | Not started | |
 
-## A0 sync (10 Nov)
-`agent/core` has nothing after T05 (`e0025bd`). No T09, T15 or debrief copy fix to merge yet. Nothing was merged.
+## A0 sync
+- 10 Nov: `agent/core` had nothing after T05.
+- 11 Nov: `agent/core` gained T09 (`fd93d53`) and the debrief copy fix (`be35fcb`). Trial merge on a throwaway branch: 93 tests passed, parity 0 diffs, tsc clean, build OK, core-spec 40/40. Merged into `main` with no conflicts. **T15 (coach) is not on the branch yet**, so Stage C is blocked.
+- The debrief now has two views: the review, and a trust map listing each observed advisor and category ("you followed 0 of 2, Dash was right 2"). The Keep button becomes Map / Review on the debrief.
+
+## Gate 2 (11 Nov): green, tagged `gate2`
+- Default settings: Module 2, 10 patients, 6 verifies, 20 s pause, hands only, debrief and trust map. Console `{"info":78}`, 0 errors, `[debrief] match=true`.
+- Accessibility modes: Module 1 with one hand, calm, high contrast and big text together. 0 errors.
+- Module 3 full shift: last full played run was at T08 (before T12). Since T12 I only ran its first patient with three second opinions and two fast idle runs.
+- Checks: 93 tests, parity 0 diffs, tsc clean, build OK.
+- Live URL from a fresh profile: loads with 0 failed requests and 0 console errors. A shift cannot be played there from a desktop browser (no WebXR), so that part of the gate is covered by the local emulator only.
+- Cut: gaze-dwell (S5 never run). Not cut but not built: coach button (waiting for T15), Echo (never in scope).
+- Content freeze starts now: no new content or interaction types.
 
 ## T12 accessibility and onboarding
 Acceptance:
