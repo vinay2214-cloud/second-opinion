@@ -188,6 +188,7 @@ export class ShiftSystem extends createSystem({
   private debriefShown: PanelLine[] = [];
   private mapLines: PanelLine[] = [];
   private mapOpen = false;
+  private idleClock = 0;
   private notice = '';
   private noticeUntil = 0;
   private names: Partial<Record<AdvisorId, string>> = {};
@@ -374,6 +375,13 @@ export class ShiftSystem extends createSystem({
       this.begin(MODULE_ORDER[asked - 1]);
       return;
     }
+    // Redraw at most four times a second (and at once after any input).
+    this.refreshIn -= this.clock - this.idleClock;
+    this.idleClock = this.clock;
+    if (this.refreshIn > 0 && !flip) {
+      return;
+    }
+    this.refreshIn = REFRESH_SEC;
     if (this.ended) {
       // On the debrief the Keep button switches between the review and the trust map.
       if (flip && !this.settingsOpen) {
@@ -402,6 +410,9 @@ export class ShiftSystem extends createSystem({
         });
       });
       lines.push({ text: 'Poke a module to start.', em, color: ACCENT });
+    } else if (this.world.visibilityState.peek() === VisibilityState.NonImmersive) {
+      lines.push({ text: 'This is a mixed-reality game for Meta Quest.', em, color: '#9ec1ff' });
+      lines.push({ text: 'Open this page on the headset and enter XR to play.', em, color: ACCENT });
     } else {
       lines.push({ text: 'Place your ward to begin.', em, color: ACCENT });
     }

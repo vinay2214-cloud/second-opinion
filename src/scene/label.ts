@@ -18,7 +18,8 @@ export interface LabelOptions {
 
 /** A label lying flat on a surface, readable from the player's side (+Z). */
 export function createFlatLabel(text: string, options: LabelOptions): Mesh {
-  const pxPerMetre = 4000;
+  // Capped so no texture side exceeds 1024 px (docs/03 section 8).
+  const pxPerMetre = Math.min(4000, 1024 / Math.max(options.width, options.height));
   const canvas = document.createElement('canvas');
   canvas.width = Math.max(16, Math.round(options.width * pxPerMetre));
   canvas.height = Math.max(16, Math.round(options.height * pxPerMetre));

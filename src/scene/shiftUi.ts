@@ -95,7 +95,7 @@ export function scalePanels(ui: ShiftUiParts, scale: number): void {
   ui.speech.mesh.scale.setScalar(scale);
   ui.speech.mesh.position.y = SPEECH_BASE_Y + 0.16 * scale * Math.cos(SPEECH_TILT);
   ui.debrief.mesh.scale.setScalar(scale);
-  ui.debrief.mesh.position.y = DEBRIEF_BASE_Y + 0.18 * scale * Math.cos(DEBRIEF_TILT);
+  ui.debrief.mesh.position.y = DEBRIEF_BASE_Y + 0.2 * scale * Math.cos(DEBRIEF_TILT);
 }
 
 const TOGGLES: Array<{ key: ToggleKey; label: string }> = [
@@ -117,9 +117,9 @@ export function buildShiftUi(): ShiftUiParts {
   speech.mesh.rotation.x = -SPEECH_TILT;
   speech.mesh.position.set(0, SPEECH_BASE_Y + 0.16 * Math.cos(SPEECH_TILT), -0.225);
 
-  const debrief = createTextPanel('Debrief Panel', 0.56, 0.36);
+  const debrief = createTextPanel('Debrief Panel', 0.56, 0.4);
   debrief.mesh.rotation.x = -DEBRIEF_TILT;
-  debrief.mesh.position.set(0, DEBRIEF_BASE_Y + 0.18 * Math.cos(DEBRIEF_TILT), -0.1);
+  debrief.mesh.position.set(0, DEBRIEF_BASE_Y + 0.2 * Math.cos(DEBRIEF_TILT), -0.1);
   debrief.mesh.visible = false;
 
   const keep = button('Keep Button', 0.045, 0.045, ['Keep', 'Map', 'Review'], PALETTE.button);

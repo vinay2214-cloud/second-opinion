@@ -1,6 +1,7 @@
 // Patient token: an abstract low-poly figure, 5.4 cm wide and about 6 cm tall.
 // Origin at its base. Width follows docs/04 section 3 (token about 5 cm).
 import {
+  CircleGeometry,
   CylinderGeometry,
   Mesh,
   MeshBasicMaterial,
@@ -8,6 +9,7 @@ import {
   RingGeometry,
   SphereGeometry,
 } from '@iwsdk/core';
+import { makeOpaque, SAFE } from './flags.js';
 import { PALETTE } from './palette.js';
 
 export interface TokenParts {
@@ -15,8 +17,12 @@ export interface TokenParts {
   /** Ring at the base: the hover / selected outline. */
   outline: Mesh;
   material: MeshLambertMaterial;
-  /** Window ring: TIMER_SEGMENTS arcs around the base, hidden from the end as time runs out. */
-  timer: Mesh[];
+  /**
+   * Window ring, one draw call each: `timer` is solid, `timerDashed` shows every
+   * other segment (last seconds). TokenSystem shortens them with setDrawRange.
+   */
+  timer: Mesh;
+  timerDashed: Mesh;
   timerMaterial: MeshBasicMaterial;
 }
 
@@ -58,19 +64,44 @@ export function buildToken(index: number): TokenParts {
     opacity: 0.9,
     depthWrite: false,
   });
-  const step = (Math.PI * 2) / TIMER_SEGMENTS;
-  const timer: Mesh[] = [];
-  for (let k = 0; k < TIMER_SEGMENTS; k++) {
-    const arc = new Mesh(
-      new RingGeometry(0.039, 0.045, 2, 1, Math.PI / 2 - (k + 1) * step + 0.008, step - 0.016),
+  const ring = () => {
+    // Negative sweep so segment 0 starts at 12 o'clock and the ring runs clockwise from above.
+    const mesh = new Mesh(
+      new RingGeometry(0.039, 0.045, TIMER_SEGMENTS, 1, Math.PI / 2, -Math.PI * 2),
       timerMaterial,
     );
-    arc.rotation.x = -Math.PI / 2;
-    arc.position.y = 0.0012;
-    arc.visible = false;
-    root.add(arc);
-    timer.push(arc);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.y = 0.0012;
+    mesh.visible = false;
+    root.add(mesh);
+    return mesh;
+  };
+  const timer = ring();
+  timerMaterial.side = 2; // DoubleSide: the negative sweep flips the winding
+  const timerDashed = ring();
+  // Keep only every other segment's triangles (6 indices per segment), packed at the front.
+  const all = timerDashed.geometry.getIndex();
+  if (all) {
+    const kept: number[] = [];
+    for (let k = 0; k < TIMER_SEGMENTS; k += 2) {
+      for (let j = 0; j < 6; j++) {
+        kept.push(all.getX(k * 6 + j));
+      }
+    }
+    timerDashed.geometry.setIndex(kept);
   }
 
-  return { root, outline, material, timer, timerMaterial };
+  // Blob shadow: grounds the token without real-time shadows. Skipped in safe mode.
+  if (!SAFE) {
+    const shadow = new Mesh(
+      new CircleGeometry(0.032, 20),
+      new MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28, depthWrite: false }),
+    );
+    shadow.rotation.x = -Math.PI / 2;
+    shadow.position.y = 0.0006;
+    root.add(shadow);
+  }
+  makeOpaque(root);
+
+  return { root, outline, material, timer, timerDashed, timerMaterial };
 }

@@ -26,6 +26,8 @@ import { TokenSystem } from '../game/systems/TokenSystem.js';
 import { TraySystem } from '../game/systems/TraySystem.js';
 import { PlacementPad, RecentreButton } from './components.js';
 import { buildGhostHand } from '../access/ghostHand.js';
+import { buildDebugPanel, captureErrors, DebugOverlay } from '../ui/DebugOverlay.js';
+import { DEBUG, makeOpaque, SAFE } from './flags.js';
 import { buildShiftUi } from './shiftUi.js';
 import { buildWard, type WardParts } from './ward.js';
 
@@ -42,6 +44,12 @@ export interface WardRuntime {
 }
 
 export function bootstrapWard(world: World): WardRuntime {
+  // Flat-browser viewers (no XR session) get a soft dark page instead of white.
+  document.body.style.background = 'radial-gradient(circle at 50% 35%, #1d2c44 0%, #0a1220 70%)';
+  document.title = 'Second Opinion';
+  if (DEBUG) {
+    captureErrors();
+  }
   const parts = buildWard();
   world.registerComponent(PlacementPad).registerComponent(RecentreButton);
 
@@ -143,5 +151,15 @@ export function bootstrapWard(world: World): WardRuntime {
   });
   ShiftSystem.ui = ui;
   world.registerSystem(ShiftSystem);
+
+  if (DEBUG) {
+    const debug = buildDebugPanel();
+    parts.content.add(debug.mesh);
+    world.createTransformEntity(debug.mesh, { parent: contentEntity });
+    DebugOverlay.panel = debug;
+    world.registerSystem(DebugOverlay);
+  }
+  makeOpaque(parts.root); // ?safe=1
+  console.info(`[boot] debug=${DEBUG} safe=${SAFE}`);
   return runtime;
 }

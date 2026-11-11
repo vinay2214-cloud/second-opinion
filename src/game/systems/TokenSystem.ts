@@ -141,9 +141,11 @@ export class TokenSystem extends createSystem({
     const full = surge ? Math.round(TIMER_SEGMENTS * 0.75) : TIMER_SEGMENTS;
     const lit = view.removeIn >= 0 ? 0 : Math.ceil(Math.max(0, Math.min(1, fraction)) * full);
     view.parts.timerMaterial.color.setHex(urgent ? 0xffc35c : 0x9ec1ff);
-    for (let k = 0; k < TIMER_SEGMENTS; k++) {
-      view.parts.timer[k].visible = k < lit && (!urgent || k % 2 === 0);
-    }
+    const { timer, timerDashed } = view.parts;
+    timer.visible = !urgent && lit > 0;
+    timerDashed.visible = urgent && lit > 0;
+    timer.geometry.setDrawRange(0, lit * 6);
+    timerDashed.geometry.setDrawRange(0, Math.ceil(lit / 2) * 6);
   }
 
   /** The last tray move was not accepted: send the token back where it was, silently. */
@@ -171,9 +173,8 @@ export class TokenSystem extends createSystem({
       this.grab.forceRelease(entity); // onRelease sees removeIn and stays quiet
     }
     entity.setValue(Token, 'state', 'done');
-    for (const arc of view.parts.timer) {
-      arc.visible = false;
-    }
+    view.parts.timer.visible = false;
+    view.parts.timerDashed.visible = false;
     this.rest(entity, view, finalZone, RETURN_SEC);
   }
 
@@ -211,7 +212,10 @@ export class TokenSystem extends createSystem({
         view.moveLeft = Math.max(0, view.moveLeft - delta);
         const t = 1 - view.moveLeft / view.moveTotal;
         const eased = 1 - (1 - t) * (1 - t) * (1 - t);
-        root.position.lerpVectors(view.from, view.to, eased);
+        // A landing with a stamp overshoots slightly (docs/02 juice list); other moves do not.
+        const u = t - 1;
+        const along = view.stampZone ? 1 + 2.2 * u * u * u + 1.2 * u * u : eased;
+        root.position.lerpVectors(view.from, view.to, along);
         root.scale.setScalar(
           root.scale.x + (view.restScale - root.scale.x) * eased,
         );

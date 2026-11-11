@@ -25,7 +25,9 @@ export interface TextPanel {
   set(key: string, lines: readonly PanelLine[]): void;
 }
 
-const PX_PER_M = 3000;
+/** Canvas resolution, capped so no texture side exceeds 1024 px (docs/03 section 8). */
+const MAX_PX_PER_M = 3000;
+const MAX_TEXTURE_PX = 1024;
 export const BODY_EM = 0.017;
 
 export function createTextPanel(
@@ -35,6 +37,7 @@ export function createTextPanel(
   background = '#0c1626',
   border = '#5b7db8',
 ): TextPanel {
+  const PX_PER_M = Math.min(MAX_PX_PER_M, MAX_TEXTURE_PX / Math.max(width, height));
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(width * PX_PER_M);
   canvas.height = Math.round(height * PX_PER_M);

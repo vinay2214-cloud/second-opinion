@@ -198,7 +198,7 @@ export function buildWard(): WardParts {
   const cap = new Mesh(new BoxGeometry(0.05, 0.012, 0.05), lambert(PALETTE.button));
   cap.position.y = 0.006;
   recentreButton.add(cap);
-  const capLabel = createFlatLabel('RE-CENTRE', {
+  const capLabel = createFlatLabel('Centre', {
     width: 0.046,
     height: 0.012,
     color: PALETTE.text,

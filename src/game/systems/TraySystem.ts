@@ -102,6 +102,8 @@ export class TraySystem extends createSystem({
     for (const view of this.views.values()) {
       const ring = view.parts.ring;
       const material = ring.material as { opacity: number };
+      // Visibility follows opacity, so the ring also works in ?safe=1 (no transparency).
+      ring.visible = material.opacity > 0.03;
       if (view.stamp > 0) {
         view.stamp = Math.max(0, view.stamp - delta);
         const t = 1 - view.stamp / STAMP_SEC;

@@ -15,7 +15,9 @@ Evidence paths are under `spikes/evidence/`. Last update: Wed 11 Nov 2026.
 | T12 accessibility and onboarding | Done, see below | `T12-*.png` |
 | T09 trust map (Astra's model, my view) | Merged and shown on the debrief | `T09-debrief-review.png`, `T09-trust-map.png` |
 | T10 sound | Not started: no audio brief in `proposals/` | `spikes/S6.md` (API works, unheard) |
-| T14, T17, Stage D | Not started | |
+| T14 polish, debug, safe mode | Done except the items listed below | `T14-*.png` |
+| T17 coach button | Blocked: Astra's T15 is not merged | |
+| Stage D | Not started | |
 
 ## A0 sync
 - 10 Nov: `agent/core` had nothing after T05.
@@ -54,6 +56,31 @@ What shipped:
 Not shipped in T12:
 - **Gaze-dwell:** skipped. Spike S5 was never run, so the precondition is not met.
 - **Sound-off setting:** nothing to switch off yet. `src/persist` settings has no mute field; T10 will need one from Astra or a key of its own.
+
+## Stage B: T10 and T14 (11 Nov)
+**T10 sound: not built.** There is no audio brief in `proposals/`. The game is silent; every cue is visual. If the brief has not arrived by Sat 14 Nov noon, it ships silent.
+
+**T14 acceptance:**
+- Bundle under 15 MB: pass. `dist/` is 3.1 MB of files (largest 2.48 MB, about 0.68 MB gzipped).
+- No console errors across 5 full shifts: pass. Module 1, 2, 3, 1, 2 in a row, hands only: 0 errors. One warning (debrief text shrunk to 93%) is fixed by a taller panel.
+- `?debug=1` and `?safe=1` on the deployed build: both load with 0 failed requests and 0 console errors (see the live check below). In the emulator both were exercised in a session: `T14-safe-debug-held.png`.
+- "It looks clean" from a fresh person: **not done.** Needs a human; ask one person.
+
+**T14 changes:**
+- Flat-browser view: dark page background, wider camera, and the line "Open this page on the headset and enter XR to play." `T14-flat-view.png`.
+- `?debug=1`: in-world panel left of the speech panel with frame rate, worst frame time, session and hand tracking state, last error and build tag.
+- `?safe=1`: every material opaque; highlight rings switch on and off instead of fading; labels sit on black boxes.
+- Token window ring is now one draw call per token (was 24) and still dashed in the last 8 s. Blob shadow under tokens.
+- Commit snap overshoots slightly before the stamp.
+- Canvas textures capped at 1024 px per side.
+- Idle screens redraw four times a second instead of every frame.
+- Test aids: `?speed=` and `src/game/testRun.ts` are read only in dev builds; the production bundle contains neither string (`grep -c TEST_RUN dist/assets/index-*.js` gives 0). `?seed=` and `?module=`... only `?seed=` works on the live site, by design.
+
+**T14 not done:**
+- Ward overhang: unchanged. On the emulator's round desk the ward's front corners overhang. Fixing it means pushing the ward 10 cm further away, which breaks the 60 cm reach. A rectangular table fits.
+- Instancing of tokens and trays: not done; object counts are small (at most 3 tokens, 3 trays).
+- Frame rate on device: cannot be measured in the emulator. The debug overlay exists so the Quest tester can report it.
+- Button labels ("Pause", "Keep", "Menu", "Centre") have capitals of about 1 cm, under the 1.2 cm rule.
 
 ## Open issues
 - The drift tag is small (capitals about 1.05 cm) and its second row is slightly clipped by the tray edge. It is meant to be easy to miss, but check it on a headset.
