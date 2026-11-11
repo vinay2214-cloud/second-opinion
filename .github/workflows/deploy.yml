@@ -32,7 +32,12 @@ jobs:
       - name: Test core
         run: npm test --if-present
 
+      # Optional AI coach. VITE_COACH_PROXY_URL is a repository *variable* (a public
+      # URL, not a secret). Unset or empty means the build has no coach button.
+      # API keys never belong here: they live only in the proxy's own environment.
       - name: Build
+        env:
+          VITE_COACH_PROXY_URL: ${{ vars.VITE_COACH_PROXY_URL }}
         run: npm run build
 
       - name: Upload artifact
