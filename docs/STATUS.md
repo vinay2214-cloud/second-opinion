@@ -25,7 +25,7 @@ Evidence paths are under `spikes/evidence/`. Last update: Wed 11 Nov 2026.
 ## Gate 2 (11 Nov): green, tagged `gate2`
 - Default settings: Module 2, 10 patients, 6 verifies, 20 s pause, hands only, debrief and trust map. Console `{"info":78}`, 0 errors, `[debrief] match=true`.
 - Accessibility modes: Module 1 with one hand, calm, high contrast and big text together. 0 errors.
-- Module 3 full shift: last full played run was at T08 (before T12). Since T12 I only ran its first patient with three second opinions and two fast idle runs.
+- Module 3: full played shift on the Gate 2 build, 14 patients, 4 verifies, both surges, drift cue at patient 9. Console `{"info":89}`, 0 errors, `[debrief] match=true`, ended at 6:22 shift time.
 - Checks: 93 tests, parity 0 diffs, tsc clean, build OK.
 - Live URL from a fresh profile: loads with 0 failed requests and 0 console errors. A shift cannot be played there from a desktop browser (no WebXR), so that part of the gate is covered by the local emulator only.
 - Cut: gaze-dwell (S5 never run). Not cut but not built: coach button (waiting for T15), Echo (never in scope).
