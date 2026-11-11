@@ -149,6 +149,13 @@ The condition is a fresh-profile test on the live URL that includes a full shift
 5. **Card reach-through:** fixed by design instead of measured. A poke now only opens the vitals; nothing closes them by poke, so a hand passing over the card toward the lane cannot hide them. The tutorial closes them once at its start so it can teach the poke. An accidental open is harmless.
 6. **`rc1`** tagged on the emulator bar: full local shifts in all three modules, live URL loads clean, four checks green. The debug overlay's build tag reads `rc1`.
 
+## Stage 2: tester kit (11 Nov)
+`submission/tester-kit/`: `README.md` (script: Module 1 then Module 3, think aloud, debug and safe links, how to record and screenshot), `feedback-form.md` (23 questions plus setup and build tag), `known-issues.md`, `hardware-unknowns.md`. No personal information. The Quest menu steps for recording are written from memory of the Quest interface and were not checked on a device.
+
+## Stages 3 and 4: waiting
+- Coach: `agent/core` has no T15 as of 11 Nov. Nothing built.
+- Sound: no audio brief in `proposals/` as of 11 Nov. Silent.
+
 ## Open issues
 - The ghost hand is a simple blocky shape and can be hard to read against the card.
 - The live site cannot be played in a plain desktop browser (no WebXR there), so "fresh profile" checks on the live URL cover loading and console errors only. Full shifts are verified in the local emulator.
