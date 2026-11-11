@@ -91,7 +91,9 @@ export function createTextPanel(
       if (pass === 0) {
         if (y > canvas.height - pad) {
           scale = (canvas.height - pad * 2) / (y - pad);
-          console.warn(`[ui] ${name}: text shrunk to ${Math.round(scale * 100)}% to fit`);
+          if (scale < 0.97) {
+            console.warn(`[ui] ${name}: text shrunk to ${Math.round(scale * 100)}% to fit`);
+          }
         }
       }
     }
