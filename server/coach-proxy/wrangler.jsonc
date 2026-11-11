@@ -1,0 +1,8 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "second-opinion-coach",
+  "main": "index.ts",
+  "compatibility_date": "2026-11-11",
+  "keep_vars": true,
+  "observability": { "enabled": false }
+}
