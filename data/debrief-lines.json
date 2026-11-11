@@ -20,7 +20,7 @@
   },
   "pressure": "Your accuracy dropped during the surge. Rushing is when rubber-stamping creeps in.",
   "nextStep": {
-    "balanced": "Next: try the daily shift and beat your index.",
+    "balanced": "Next: play another shift and try to beat your index.",
     "overReliance": "Next: commit before you read the advice, then ask whether it adds anything.",
     "underReliance": "Next: when an advisor disagrees, check one more opinion before you overrule.",
     "mixed": "Next: slow down on disagreements. Ask which advisor is strongest on this kind of case.",
