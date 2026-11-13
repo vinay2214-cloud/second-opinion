@@ -18,7 +18,7 @@ Evidence paths are under `spikes/evidence/`. Last update: Wed 11 Nov 2026.
 | T11 gap review | Done, see "Gap review" below | |
 | T16 coach prompt evaluation | Tool and 30 fact sets written. **Not run**: waiting for the owner to say the key is set | `tools/coach-eval.mjs` |
 | T14 polish, debug, safe mode | Done except the items listed below | `T14-*.png` |
-| T15 coach client and proxy (Astra) | Merged into `main` (`0034e0a`). Worker not deployed; no proxy URL set | |
+| T15 coach client and proxy (Astra) | Merged into `main` (`0034e0a`). **Worker prepared, not deployed**; model `gemini-3.5-flash-lite`; key handling: `.dev.vars` (gitignored) -> wrangler secret. No proxy URL set. See "Worker deploy prep" below | `server/coach-proxy/README.md` |
 | T17 coach button | Built; tested against a mock proxy only. Off in the live build until the owner sets `VITE_COACH_PROXY_URL` | `T17-*.png` |
 | Stage D: QA, submission check, footage kit | D1 to D3 done; `rc1` tagged on the emulator bar (Stage 1). Footage now has the Orator and drift moments on seed `ward-128` | `submission/footage/` |
 
@@ -253,10 +253,21 @@ The condition is a fresh-profile test on the live URL that includes a full shift
 - The live site cannot be played in a plain desktop browser (no WebXR there), so "fresh profile" checks on the live URL cover loading and console errors only. Full shifts are verified in the local emulator.
 - For the remote Quest tester: poke accuracy on 4.5 cm buttons; accidental card pokes when reaching for the lane; speech text legibility at about 65 cm; whether the tracking-loss freeze triggers when hands rest in the lap.
 
+## Worker deploy prep (13 Nov, branch `agent/coach-deploy-prep`, not merged)
+
+**Worker prepared, not deployed; model gemini-3.5-flash-lite; key handling: .dev.vars (gitignored) -> wrangler secret.**
+
+- `wrangler.jsonc` now carries the three public vars: `COACH_MODEL`, `COACH_ALLOWED_ORIGINS` (`https://vinay2214-cloud.github.io`), `COACH_ENABLED` (`true`). The key is not in any tracked file.
+- `provider.ts`: one change. The request pins `generationConfig.thinkingConfig.thinkingLevel` to `MINIMAL` (field name and value checked against the Gemini API reference; thought tokens count against the 150-token cap). Still plain text only: no tools, no search grounding, no audio. Timeout, cap and fallback unchanged. No test covers the new field (`tests/` was outside this task's file list).
+- `server/coach-proxy/deploy.sh` (owner runs it): refuses an empty key, deploys, pipes the key into `wrangler secret put`, prints the URL. `bash -n` passes; shellcheck is not installed here; the script has only been run with an empty key (it stopped, as intended).
+- `.gitignore`: `.dev.vars`, `.env`, `.env.*`, `*.vars` ignored everywhere; `.dev.vars.example` is tracked.
+- Checks: `wrangler deploy --dry-run` (4.161.0) bundles, 13.78 KiB, three vars bound; 133 tests pass; tsc clean; parity 0 diffs.
+- **Not done, not claimed:** no deploy, no login, no secret upload, no call to Cloudflare or Gemini. The model name, the thinking field and the four curl tests in the README have never met the real services.
+
 ## Next
 Waiting on the owner:
 1. Listen to the five cues once (any desktop browser after entering the emulator, or the headset tester) and accept or reject `proposals/audio-brief.md`. Deadline for the silent fallback: Fri 13 Nov evening.
-2. Deploy the Worker, then set the repository variable `VITE_COACH_PROXY_URL` and re-run the deploy workflow. After that, one real coach tap on the live build.
+2. Deploy the Worker: fill `server/coach-proxy/.dev.vars`, `npx wrangler login`, `./deploy.sh`, then the four curl tests in `server/coach-proxy/README.md`. Then set the repository variable `VITE_COACH_PROXY_URL` to `https://second-opinion-coach.<your-subdomain>.workers.dev/coach` and re-run the deploy workflow. After that, one real coach tap on the live build.
 3. Say when `COACH_API_KEY` and `COACH_MODEL` are set in the shell, so `tools/coach-eval.mjs` can be run; then spot-check 10 replies in `submission/coach-eval/report.md`.
 4. Fix the submission text items in Stage D2 (not edited by me).
 5. One fresh person for the tutorial and "it looks clean"; the Quest tester for everything marked emulator only.

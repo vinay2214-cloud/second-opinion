@@ -7,7 +7,15 @@ export function geminiRequest(facts: CoachFacts) {
   return {
     systemInstruction: { parts: [{ text: C.system }] },
     contents: [{ role: 'user', parts: [{ text: JSON.stringify(facts) }] }],
-    generationConfig: { maxOutputTokens: C.limits.maxOutputTokens, temperature: 0.2, candidateCount: 1 },
+    // Plain text only: no tools, no search grounding, no audio. Thought tokens count
+    // against maxOutputTokens, so thinking is pinned to the lowest documented level
+    // (GenerationConfig.thinkingConfig.thinkingLevel; Gemini 3 or later only).
+    generationConfig: {
+      maxOutputTokens: C.limits.maxOutputTokens,
+      temperature: 0.2,
+      candidateCount: 1,
+      thinkingConfig: { thinkingLevel: 'MINIMAL' },
+    },
   };
 }
 

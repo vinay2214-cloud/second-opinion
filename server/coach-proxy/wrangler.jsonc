@@ -4,5 +4,12 @@
   "main": "index.ts",
   "compatibility_date": "2026-11-11",
   "keep_vars": true,
+  // Public, non-secret settings. COACH_API_KEY is a Worker secret and never belongs
+  // in this file: deploy.sh uploads it from the gitignored .dev.vars.
+  "vars": {
+    "COACH_MODEL": "gemini-3.5-flash-lite",
+    "COACH_ALLOWED_ORIGINS": "https://vinay2214-cloud.github.io",
+    "COACH_ENABLED": "true"
+  },
   "observability": { "enabled": false }
 }
