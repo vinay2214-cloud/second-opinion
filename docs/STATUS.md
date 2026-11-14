@@ -264,6 +264,16 @@ The condition is a fresh-profile test on the live URL that includes a full shift
 - Checks: `wrangler deploy --dry-run` (4.161.0) bundles, 13.78 KiB, three vars bound; 133 tests pass; tsc clean; parity 0 diffs.
 - **Not done, not claimed:** no deploy, no login, no secret upload, no call to Cloudflare or Gemini. The model name, the thinking field and the four curl tests in the README have never met the real services.
 
+## Worker 204 investigation (14 Nov, branch `agent/coach-deploy-prep`, not merged, not deployed)
+
+The owner deployed the Worker and a valid-looking request returned 204. Nothing here called Cloudflare or Gemini; this is code reading, docs and unit tests only.
+
+- The owner's curl body **passes** `validateCoachFacts` (now a test). A facts problem would have been a 400, not a 204. So the 204 came from the model side: key or model not configured, a non-2xx from Gemini, a reply cut off at the 150-token cap (the cap includes thought tokens), an empty or blocked reply, a 3 s timeout, or text that failed `validateCoachText`. Which one is **not known**; the deployed Worker logged nothing.
+- Added one log line per request: `coach: reason=<code> upstream=<status or none>`. Fixed codes and a numeric status only; a test checks that no line holds the key, the body, the prompt or the model text. Code table in `server/coach-proxy/README.md`. Four codes beyond the owner's list: `preflight`, `bad_request`, `not_configured`, `upstream_truncated`.
+- `provider.ts`: `temperature` removed (Gemini 3.x guidance is to send no sampling parameters). Endpoint, header auth and field names match the docs. The 150-token cap was **not** changed (it lives in `data/coach-prompt.json`); it is tight if minimal thinking uses more than a few dozen tokens.
+- Checks: 137 tests pass, tsc clean, parity 0 diffs, `wrangler deploy --dry-run` bundles.
+- To find the cause: redeploy this branch's Worker, run `npx wrangler tail`, send the curl test once, read the code.
+
 ## Next
 Waiting on the owner:
 1. Listen to the five cues once (any desktop browser after entering the emulator, or the headset tester) and accept or reject `proposals/audio-brief.md`. Deadline for the silent fallback: Fri 13 Nov evening.

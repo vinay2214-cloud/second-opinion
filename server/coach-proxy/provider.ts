@@ -10,9 +10,9 @@ export function geminiRequest(facts: CoachFacts) {
     // Plain text only: no tools, no search grounding, no audio. Thought tokens count
     // against maxOutputTokens, so thinking is pinned to the lowest documented level
     // (GenerationConfig.thinkingConfig.thinkingLevel; Gemini 3 or later only).
+    // No temperature, topP or topK: the Gemini 3.x guidance is to remove them from all requests.
     generationConfig: {
       maxOutputTokens: C.limits.maxOutputTokens,
-      temperature: 0.2,
       candidateCount: 1,
       thinkingConfig: { thinkingLevel: 'MINIMAL' },
     },
@@ -39,10 +39,14 @@ export function geminiText(value: unknown): string | undefined {
 }
 
 /** The only provider HTTP call. No credentials in URLs, logs, client code, or files. */
-export const callGemini: CoachProvider = async (facts, env, signal) => {
+export const callGemini: CoachProvider = async (facts, env, signal, trace = {}) => {
   const model = env.COACH_MODEL?.trim().replace(/^models\//, '');
   const key = env.COACH_API_KEY?.trim();
-  if (!key || !model || !/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(model) || signal.aborted) return undefined;
+  if (!key || !model || !/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(model)) {
+    trace.reason = 'not_configured';
+    return undefined;
+  }
+  if (signal.aborted) return undefined;
   const response = await fetch(
     'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent',
     {
@@ -52,6 +56,19 @@ export const callGemini: CoachProvider = async (facts, env, signal) => {
       signal, redirect: 'error',
     },
   );
-  if (!response.ok) return undefined;
-  return geminiText(await response.json());
+  trace.upstream = response.status;
+  if (!response.ok) {
+    trace.reason = 'upstream_http';
+    return undefined;
+  }
+  const body: unknown = await response.json();
+  const text = geminiText(body);
+  if (!text) {
+    // The 150-token cap includes thought tokens; MAX_TOKENS means the reply was cut off.
+    const candidates = record(body)?.candidates;
+    const finish = Array.isArray(candidates) ? record(candidates[0])?.finishReason : undefined;
+    trace.reason = finish === 'MAX_TOKENS' ? 'upstream_truncated' : 'upstream_empty';
+    return undefined;
+  }
+  return text;
 };

@@ -168,8 +168,34 @@ when full. Restarts and multiple isolates reset/split those counters. Cloudflare
 CF-Connecting-IP supplies the bucket; missing values share a bucket. Origin
 checks are a browser safeguard, not authentication against arbitrary HTTP clients.
 
-The Worker never logs request bodies, model responses or keys. Observability is
-disabled in its config; review host logging settings before enabling any logs.
+The Worker never logs request bodies, facts, prompt text, model responses or keys.
+It writes one line per request with a fixed reason code and a numeric status:
+
+```
+coach: reason=<code> upstream=<Gemini HTTP status or none>
+```
+
+| Code | HTTP | Meaning |
+| --- | --- | --- |
+| ok | 200 | Model text passed validation. |
+| preflight | 204 | CORS preflight answered. |
+| disabled | 503 | COACH_ENABLED is not exactly true. |
+| bad_origin | 403 | Origin not in COACH_ALLOWED_ORIGINS. |
+| bad_request | 403/404/405/415 | Wrong path, method, preflight or content type. |
+| body_too_large | 413 | Over 2048 bytes. |
+| bad_json, bad_facts | 400 | Body is not JSON, or fails validateCoachFacts. |
+| rate_limited | 429 | Over 12 per IP per hour. |
+| not_configured | 204 | COACH_API_KEY or COACH_MODEL missing or malformed. No request sent. |
+| upstream_http | 204 | Gemini answered with a non-2xx status (shown in upstream), or no response arrived (upstream=none). |
+| upstream_truncated | 204 | Gemini stopped at MAX_TOKENS: the 150-token cap, which includes thought tokens, cut the reply. |
+| upstream_empty | 204 | Gemini answered 2xx with no usable text (blocked, no candidates, other finish reason). |
+| upstream_timeout | 204 | No reply within 3 s. |
+| text_rejected | 204 | The reply failed validateCoachText. |
+| fallback | 204 | Anything else (client went away, unexpected error). |
+
+Observability stays disabled in the config, so lines are not stored. To watch them
+live, run `npx wrangler tail` in this folder in one terminal and send the curl test
+from another.
 Provider errors, missing configuration, blocked/truncated/invalid output and
 timeouts return 204. Guard failures return 400/403/404/405/413/415/429; the kill
 switch returns 503. All client failures return the template.
