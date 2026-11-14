@@ -200,7 +200,7 @@ coach: reason=<code> upstream=<Gemini HTTP status or none> stage=<step or none> 
 | upstream_truncated | 204 | Gemini stopped at MAX_TOKENS: the 150-token cap, which includes thought tokens, cut the reply. |
 | upstream_empty | 204 | Gemini answered 2xx with no usable text (blocked, no candidates, other finish reason), or its body was not JSON (stage=read_body). |
 | upstream_timeout | 204 | No reply within 3 s. |
-| text_rejected | 204 | The reply failed validateCoachText. |
+| text_rejected | 204 | The reply failed validateCoachText or the number guard (src/coach/numberGuard.ts: a number attached to a counting word must be a count in the facts). |
 | fallback | 204 | Anything else (client went away, unexpected error). |
 
 Observability stays disabled in the config, so lines are not stored. To watch them
