@@ -1,9 +1,10 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import { buildDebrief } from '../src/core/debrief.js';
-import { buildCoachFacts } from '../src/core/coach.js';
+import { buildCoachFacts, validateCoachFacts } from '../src/core/coach.js';
 import { coachConfig as C } from '../src/core/data.js';
 import { createCoachProxy } from '../server/coach-proxy/index.js';
 import { callGemini, geminiRequest, geminiText } from '../server/coach-proxy/provider.js';
+import { COACH_REASONS } from '../server/coach-proxy/types.js';
 import type { CoachEnvironment, CoachProvider } from '../server/coach-proxy/types.js';
 
 const origin = 'https://game.example';
@@ -156,7 +157,11 @@ test('Gemini payload uses the exact fixed prompt, facts and configured token cap
   expect(payload.systemInstruction).toEqual({ parts: [{ text: C.system }] });
   expect(payload.contents).toEqual([{ role: 'user', parts: [{ text: JSON.stringify(facts) }] }]);
   expect(payload.generationConfig.maxOutputTokens).toBe(C.limits.maxOutputTokens);
-  expect(payload.generationConfig.temperature).toBeLessThanOrEqual(0.3);
+  // Gemini 3.x guidance: no sampling parameters. Thinking pinned to the lowest level; no tools.
+  expect(payload.generationConfig).toEqual({
+    maxOutputTokens: C.limits.maxOutputTokens, candidateCount: 1, thinkingConfig: { thinkingLevel: 'MINIMAL' },
+  });
+  expect(Object.keys(payload).sort()).toEqual(['contents', 'generationConfig', 'systemInstruction']);
 });
 
 test('Gemini decoder omits thought parts and rejects truncated or blocked responses', () => {
@@ -172,4 +177,109 @@ test('missing server credentials or model never sends a provider request', async
   vi.stubGlobal('fetch', fetcher);
   expect(await callGemini(facts, {}, new AbortController().signal)).toBeUndefined();
   expect(fetcher).not.toHaveBeenCalled();
+});
+
+// --- Reason-code logging -------------------------------------------------------------------
+
+const curlFacts = {"v":1,"headline":"overReliance","index":0,"disagreements":4,"overRelianceRate":100,"underRelianceRate":0,"verifyYield":null,"drift":{"advisor":"Dash","category":"children","noticed":false},"pressureDrop":false,"patterns":[{"kind":"followedTooOften","advisor":"Dash","category":"children","count":4,"of":4,"adviceRight":0}]};
+const FAKE_KEY = 'FAKE-KEY-0123456789-not-a-real-credential';
+const MODEL_TEXT = 'You followed Dash on children cases 4 of 4 times. Next shift, verify Dash once before you commit.';
+const LINE = new RegExp(`^coach: reason=(${COACH_REASONS.join('|')}) upstream=(none|[1-5]\\d\\d) stage=(none|build_url|build_headers|build_body|fetch|read_body) err=(none|[A-Za-z][A-Za-z0-9]{0,39}) key_len_ok=(true|false) key_prefix_ok=(true|false) key_charset_ok=(true|false)$`);
+
+function spyLog() {
+  const lines: string[] = [];
+  vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => { lines.push(args.map(String).join(' ')); });
+  return lines;
+}
+function gemini(status: number, body: unknown) {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => new Response(JSON.stringify(body), { status })));
+}
+const liveEnv: CoachEnvironment = { ...env, COACH_MODEL: 'gemini-3.5-flash-lite', COACH_API_KEY: FAKE_KEY };
+const candidate = (finishReason: string, parts: unknown[]) => ({ candidates: [{ finishReason, content: { parts } }] });
+afterEach(() => { vi.restoreAllMocks(); });
+
+test('the README curl body passes the facts schema exactly as the Worker validates it', () => {
+  expect(validateCoachFacts(JSON.parse(JSON.stringify(curlFacts)))).toEqual({ ok: true, reason: null });
+  expect(new TextEncoder().encode(JSON.stringify(curlFacts)).byteLength).toBeLessThanOrEqual(C.limits.maxBodyBytes);
+});
+
+test('every outcome logs exactly one fixed reason code and a numeric upstream status', async () => {
+  const lines = spyLog();
+  const run = async (expectStatus: number, expectLine: string, req: Request, e: CoachEnvironment = liveEnv) => {
+    lines.length = 0;
+    const response = await createCoachProxy()(req, e);
+    expect(response.status).toBe(expectStatus);
+    expect(lines.length).toBe(1);
+    expect(lines[0]).toMatch(LINE);
+    expect(lines[0].startsWith(expectLine + ' stage=')).toBe(true);
+  };
+  gemini(200, candidate('STOP', [{ text: MODEL_TEXT }]));
+  await run(200, 'coach: reason=ok upstream=200', request(curlFacts));
+  await run(503, 'coach: reason=disabled upstream=none', request(curlFacts), { ...liveEnv, COACH_ENABLED: 'false' });
+  await run(403, 'coach: reason=bad_origin upstream=none', request(curlFacts, { Origin: 'https://evil.example' }));
+  await run(413, 'coach: reason=body_too_large upstream=none', request('x'.repeat(C.limits.maxBodyBytes + 1)));
+  await run(400, 'coach: reason=bad_json upstream=none', new Request('https://coach.example/coach', {
+    method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: '{not json',
+  }));
+  await run(400, 'coach: reason=bad_facts upstream=none', request({ ...curlFacts, extra: 'free text' }));
+  await run(204, 'coach: reason=not_configured upstream=none', request(curlFacts), env);
+  gemini(400, { error: { message: 'bad request detail that must not be logged' } });
+  await run(204, 'coach: reason=upstream_http upstream=400', request(curlFacts));
+  gemini(429, {});
+  await run(204, 'coach: reason=upstream_http upstream=429', request(curlFacts));
+  gemini(200, candidate('MAX_TOKENS', [{ text: 'You followed Dash on' }]));
+  await run(204, 'coach: reason=upstream_truncated upstream=200', request(curlFacts));
+  gemini(200, { candidates: [] });
+  await run(204, 'coach: reason=upstream_empty upstream=200', request(curlFacts));
+  gemini(200, candidate('STOP', [{ text: 'You should see a doctor about this diagnosis. It scored 77.' }]));
+  await run(204, 'coach: reason=text_rejected upstream=200', request(curlFacts));
+});
+
+test('rate limit and provider timeout are logged by code', async () => {
+  const lines = spyLog();
+  const ok = vi.fn<CoachProvider>(async () => text);
+  const proxy = createCoachProxy({ provider: ok });
+  for (let i = 0; i < C.limits.rateLimitPerIpPerHour; i++) await proxy(request(), env);
+  expect((await proxy(request(), env)).status).toBe(429);
+  expect(lines[lines.length - 1].startsWith('coach: reason=rate_limited upstream=none stage=none err=none ')).toBe(true);
+
+  vi.useFakeTimers();
+  const never = vi.fn<CoachProvider>(() => new Promise(() => {}));
+  const pending = createCoachProxy({ provider: never })(request(), env);
+  await vi.advanceTimersByTimeAsync(C.limits.timeoutMs);
+  expect((await pending).status).toBe(204);
+  expect(lines[lines.length - 1].startsWith('coach: reason=upstream_timeout upstream=none stage=none err=none ')).toBe(true);
+});
+
+test('no log line ever contains the key, the body, the prompt or the model text', async () => {
+  const lines = spyLog();
+  for (const method of ['error', 'warn', 'info', 'debug'] as const) {
+    vi.spyOn(console, method).mockImplementation((...args: unknown[]) => { lines.push(args.map(String).join(' ')); });
+  }
+  const bodies: unknown[] = [curlFacts, { ...curlFacts, extra: 'SECRET-BODY-MARKER' }, 'SECRET-BODY-MARKER'];
+  const replies: Array<[number, unknown]> = [
+    [200, candidate('STOP', [{ text: MODEL_TEXT }])],
+    [200, candidate('STOP', [{ text: 'SECRET-MODEL-MARKER see a doctor' }])],
+    [200, candidate('MAX_TOKENS', [{ text: 'SECRET-MODEL-MARKER' }])],
+    [403, { error: { message: `API key ${FAKE_KEY} is invalid SECRET-MODEL-MARKER` } }],
+  ];
+  for (const [status, reply] of replies) {
+    gemini(status, reply);
+    for (const body of bodies) await createCoachProxy()(request(body), liveEnv);
+  }
+  // A provider that tries to smuggle text out through the trace is reduced to a fixed code.
+  const hostile: CoachProvider = async (_facts, _env, _signal, trace) => {
+    Object.assign(trace ?? {}, { reason: `leak ${FAKE_KEY}`, upstream: `leak ${FAKE_KEY}` });
+    return undefined;
+  };
+  await createCoachProxy({ provider: hostile })(request(curlFacts), liveEnv);
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => { throw new Error(`network down ${FAKE_KEY}`); }));
+  await createCoachProxy()(request(curlFacts), liveEnv);
+
+  expect(lines.length).toBe(replies.length * bodies.length + 2);
+  const all = lines.join('\n');
+  for (const line of lines) expect(line).toMatch(LINE);
+  for (const secret of [FAKE_KEY, 'SECRET-BODY-MARKER', 'SECRET-MODEL-MARKER', MODEL_TEXT, C.system, JSON.stringify(curlFacts), 'overReliance', 'Dash', 'children', 'gemini']) {
+    expect(all).not.toContain(secret);
+  }
 });

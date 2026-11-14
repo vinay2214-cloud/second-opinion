@@ -18,7 +18,7 @@ Evidence paths are under `spikes/evidence/`. Last update: Wed 11 Nov 2026.
 | T11 gap review | Done, see "Gap review" below | |
 | T16 coach prompt evaluation | Tool and 30 fact sets written. **Not run**: waiting for the owner to say the key is set | `tools/coach-eval.mjs` |
 | T14 polish, debug, safe mode | Done except the items listed below | `T14-*.png` |
-| T15 coach client and proxy (Astra) | Merged into `main` (`0034e0a`). Worker not deployed; no proxy URL set | |
+| T15 coach client and proxy (Astra) | Merged into `main` (`0034e0a`). **Worker prepared, not deployed**; model `gemini-3.5-flash-lite`; key handling: `.dev.vars` (gitignored) -> wrangler secret. No proxy URL set. See "Worker deploy prep" below | `server/coach-proxy/README.md` |
 | T17 coach button | Built; tested against a mock proxy only. Off in the live build until the owner sets `VITE_COACH_PROXY_URL` | `T17-*.png` |
 | Stage D: QA, submission check, footage kit | D1 to D3 done; `rc1` tagged on the emulator bar (Stage 1). Footage now has the Orator and drift moments on seed `ward-128` | `submission/footage/` |
 
@@ -253,10 +253,41 @@ The condition is a fresh-profile test on the live URL that includes a full shift
 - The live site cannot be played in a plain desktop browser (no WebXR there), so "fresh profile" checks on the live URL cover loading and console errors only. Full shifts are verified in the local emulator.
 - For the remote Quest tester: poke accuracy on 4.5 cm buttons; accidental card pokes when reaching for the lane; speech text legibility at about 65 cm; whether the tracking-loss freeze triggers when hands rest in the lap.
 
+## Worker deploy prep (13 Nov, branch `agent/coach-deploy-prep`, not merged)
+
+**Worker prepared, not deployed; model gemini-3.5-flash-lite; key handling: .dev.vars (gitignored) -> wrangler secret.**
+
+- `wrangler.jsonc` now carries the three public vars: `COACH_MODEL`, `COACH_ALLOWED_ORIGINS` (`https://vinay2214-cloud.github.io`), `COACH_ENABLED` (`true`). The key is not in any tracked file.
+- `provider.ts`: one change. The request pins `generationConfig.thinkingConfig.thinkingLevel` to `MINIMAL` (field name and value checked against the Gemini API reference; thought tokens count against the 150-token cap). Still plain text only: no tools, no search grounding, no audio. Timeout, cap and fallback unchanged. No test covers the new field (`tests/` was outside this task's file list).
+- `server/coach-proxy/deploy.sh` (owner runs it): refuses an empty key, deploys, pipes the key into `wrangler secret put`, prints the URL. `bash -n` passes; shellcheck is not installed here; the script has only been run with an empty key (it stopped, as intended).
+- `.gitignore`: `.dev.vars`, `.env`, `.env.*`, `*.vars` ignored everywhere; `.dev.vars.example` is tracked.
+- Checks: `wrangler deploy --dry-run` (4.161.0) bundles, 13.78 KiB, three vars bound; 133 tests pass; tsc clean; parity 0 diffs.
+- **Not done, not claimed:** no deploy, no login, no secret upload, no call to Cloudflare or Gemini. The model name, the thinking field and the four curl tests in the README have never met the real services.
+
+## Worker 204 investigation (14 Nov, branch `agent/coach-deploy-prep`, not merged, not deployed)
+
+The owner deployed the Worker and a valid-looking request returned 204. Nothing here called Cloudflare or Gemini; this is code reading, docs and unit tests only.
+
+- The owner's curl body **passes** `validateCoachFacts` (now a test). A facts problem would have been a 400, not a 204. So the 204 came from the model side: key or model not configured, a non-2xx from Gemini, a reply cut off at the 150-token cap (the cap includes thought tokens), an empty or blocked reply, a 3 s timeout, or text that failed `validateCoachText`. Which one is **not known**; the deployed Worker logged nothing.
+- Added one log line per request: `coach: reason=<code> upstream=<status or none>`. Fixed codes and a numeric status only; a test checks that no line holds the key, the body, the prompt or the model text. Code table in `server/coach-proxy/README.md`. Four codes beyond the owner's list: `preflight`, `bad_request`, `not_configured`, `upstream_truncated`.
+- `provider.ts`: `temperature` removed (Gemini 3.x guidance is to send no sampling parameters). Endpoint, header auth and field names match the docs. The 150-token cap was **not** changed (it lives in `data/coach-prompt.json`); it is tight if minimal thinking uses more than a few dozen tokens.
+- Checks: 137 tests pass, tsc clean, parity 0 diffs, `wrangler deploy --dry-run` bundles.
+- To find the cause: redeploy this branch's Worker, run `npx wrangler tail`, send the curl test once, read the code.
+
+## Worker `upstream=none` fix (14 Nov, branch `agent/coach-deploy-prep`, not merged, not deployed)
+
+The deployed Worker logged `coach: reason=upstream_http upstream=none` for a valid request.
+
+- **Root cause, reproduced locally:** `server/coach-proxy/provider.ts` passed `redirect: 'error'` to `fetch`. Node accepts it, so every unit test passed; the Workers runtime throws a TypeError on it before sending anything. Running the bundled Worker in local workerd (miniflare from the wrangler package, a fake key, a local stub in place of Gemini) gave the same log line and the stub was never called. With `redirect: 'manual'` the same run reaches the stub and answers 200. The key was not the cause of this failure.
+- **Fix:** `redirect: 'manual'`; a 3xx is treated as a failed reply and never followed.
+- **Also added:** the key is trimmed and refused if it holds whitespace, control or non-ASCII characters, quotes, asterisks or angle brackets (`not_configured`, no request). The log line gains `stage=`, `err=` (error class name only) and three key-shape booleans. The provider no longer throws.
+- **Tests:** new `tests/coachProvider.test.ts` uses a fetch mock that refuses `redirect: 'error'` and builds real `Request` objects, so this defect now fails a unit test. 179 tests pass, tsc clean, parity 0 diffs, dry-run bundles.
+- **Not known:** whether Gemini accepts the request. No call has ever reached Gemini from this Worker. After the next deploy the log line will say which of the remaining outcomes applies.
+
 ## Next
 Waiting on the owner:
 1. Listen to the five cues once (any desktop browser after entering the emulator, or the headset tester) and accept or reject `proposals/audio-brief.md`. Deadline for the silent fallback: Fri 13 Nov evening.
-2. Deploy the Worker, then set the repository variable `VITE_COACH_PROXY_URL` and re-run the deploy workflow. After that, one real coach tap on the live build.
+2. Deploy the Worker: fill `server/coach-proxy/.dev.vars`, `npx wrangler login`, `./deploy.sh`, then the four curl tests in `server/coach-proxy/README.md`. Then set the repository variable `VITE_COACH_PROXY_URL` to `https://second-opinion-coach.<your-subdomain>.workers.dev/coach` and re-run the deploy workflow. After that, one real coach tap on the live build.
 3. Say when `COACH_API_KEY` and `COACH_MODEL` are set in the shell, so `tools/coach-eval.mjs` can be run; then spot-check 10 replies in `submission/coach-eval/report.md`.
 4. Fix the submission text items in Stage D2 (not edited by me).
 5. One fresh person for the tutorial and "it looks clean"; the Quest tester for everything marked emulator only.

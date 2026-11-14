@@ -6,10 +6,12 @@ node_modules/
 dist/
 *.tsbuildinfo
 
-# Environment files
+# Secrets and environment files, ignored everywhere. Never commit a key.
+.dev.vars
 .env
-.env.local
-.env.production
+.env.*
+*.vars
+!.dev.vars.example
 
 # IDE and OS files
 .vscode/*
