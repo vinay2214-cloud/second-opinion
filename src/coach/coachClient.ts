@@ -2,6 +2,7 @@ import { coachConfig as C, debriefLines as L } from '../core/data.js';
 import { chooseCoachText, coachFallback, validateCoachFacts } from '../core/coach.js';
 import type { CoachDebrief, CoachText } from '../core/coach.js';
 import { COACH_PROXY_URL, coachProxyUrl } from './config.js';
+import { checkCoachNumbers } from './numberGuard.js';
 
 export interface CoachClientOptions {
   proxyUrl?: string;
@@ -56,7 +57,11 @@ export function createCoachClient(options: CoachClientOptions = {}): AskCoach {
         const reply: unknown = await response.json();
         if (signal.aborted || !reply || typeof reply !== 'object') return template;
         const modelText = (reply as Record<string, unknown>).text;
-        return chooseCoachText({ modelText, facts: snapshot, debrief });
+        const chosen = chooseCoachText({ modelText, facts: snapshot, debrief });
+        if (chosen.source !== 'coach') return chosen;
+        // A number attached to the wrong thing ("across 100 cases") also falls back.
+        const numbers = checkCoachNumbers(chosen.text, snapshot);
+        return numbers.ok ? chosen : { source: 'template', text: template.text, reason: numbers.reason };
       })().catch(() => template);
       // Includes body decoding, and settles even if a fetch implementation ignores abort.
       return await Promise.race([work, timeout]);

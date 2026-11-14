@@ -1,6 +1,7 @@
 import { coachConfig as C } from '../../src/core/data.js';
 import { validateCoachFacts, validateCoachText } from '../../src/core/coach.js';
 import type { CoachFacts } from '../../src/core/coach.js';
+import { checkCoachNumbers } from '../../src/coach/numberGuard.js';
 import { callGemini, keyShape } from './provider.js';
 import { COACH_REASONS, COACH_STAGES } from './types.js';
 import type { CoachEnvironment, CoachProvider, CoachReason, CoachTrace } from './types.js';
@@ -145,7 +146,9 @@ export function createCoachProxy({ provider = callGemini, now = Date.now }: Coac
           return respond(204, why ?? 'upstream_empty');
         }
         const valid = validateCoachText(text, value);
-        return valid.ok ? respond(200, 'ok', valid.text) : respond(204, 'text_rejected');
+        // The number guard catches a number attached to the wrong thing ("across 100 cases").
+        return valid.ok && checkCoachNumbers(valid.text, value).ok
+          ? respond(200, 'ok', valid.text) : respond(204, 'text_rejected');
       })().catch(() => respond(204, 'fallback'));
       return await Promise.race([work, timeout]);
     } catch {

@@ -307,6 +307,17 @@ In both, the game showed no error text, did not stall, and Back, Map and the mod
 
 **Requests made to the real Worker in this session:** one that reached the model (the success above) and three refused at the origin check (not counted by the rate limiter). No key was read or printed.
 
+## Coach number guard (14 Nov, branch `agent/coach-number-guard`, not merged, not deployed)
+
+The live coach said "across 100 cases" when 100 was the calibration index. Two changes, neither live yet:
+
+- **Prompt** (`data/coach-prompt.json`, `system`): number rules added. The index and rates are not counts; the index is named, never "N cases"; a number may sit next to a counting word only if it is a count in the facts; no total of patients, cases or shifts may be stated or implied; rates only as percentages. The Worker must be redeployed for the model to see this.
+- **Validator** (`src/coach/numberGuard.ts`, new, applied after `validateCoachText` in both the Worker and the client): a percentage must equal one of the three rates; a number within two words of a counting word must equal `disagreements` or a pattern's `count`, `of` or `adviceRight`; a number introduced as a total ("across", "over", "all", "out of") must equal `disagreements` or a pattern's `of`; "N of M" must be a count over a total; any number attached to shifts, rounds, advisors or people is rejected. Spelled numbers (two to hundred) are treated like digits. A rejected reply shows the template. `src/core/coach.ts` was not edited (outside the allowed files), which is why the rule lives in `src/coach`.
+- **Result on the live reply:** rejected ("total not in facts: 100 cases"); the player would have seen the template.
+- **Golden set, 30 fact sets with generated replies (233 replies):** all 99 good replies pass. Of 134 bad ones, 131 are rejected. The 3 that pass are collisions the rule cannot see: the wrong number happens to equal a real count in that fact set (index 4 with a 4-count pattern, twice; "14 patients" where 14 is a real count).
+- **Limits:** the guard checks numbers, not meaning. It does not catch a wrong statement with no number, a real count attached to the wrong noun, or a counting word more than two words from its number. `tools/coach-eval.mjs` does not apply the guard yet (outside this task's file list), so a T16 run would report the old validator's verdict only.
+- **Not tested:** whether the new prompt actually makes the model stop doing this. That needs a deploy and real replies.
+
 ## Next
 Waiting on the owner:
 1. Listen to the five cues once (any desktop browser after entering the emulator, or the headset tester) and accept or reject `proposals/audio-brief.md`. Deadline for the silent fallback: Fri 13 Nov evening.
