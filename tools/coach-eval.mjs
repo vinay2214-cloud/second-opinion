@@ -8,19 +8,74 @@
 //   COACH_API_KEY=... COACH_MODEL=... node tools/coach-eval.mjs      (set them in your own shell)
 //   node tools/coach-eval.mjs --dry-run     no network, no environment read: compiles the
 //                                           provider and validates the 30 fact sets only
+//   --pace <ms>    wait between requests (default 4500, which keeps 30 calls under a
+//                  15-requests-per-minute free tier)
+//   --out <file>   write the report somewhere other than submission/coach-eval/report.md
+//
+// A failed call is logged with its numeric HTTP status only. A 429 is retried once, after
+// the wait the response states (Retry-After header, or the retry delay in the error
+// details) or 5 s if it states none.
 //
 // The key and the model id are read from the environment, handed to the provider, and
 // never printed, logged or written to the report. Each call has the proxy's 3 s limit.
 import ts from 'typescript';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const dryRun = process.argv.includes('--dry-run');
-const PAUSE_MS = 1200; // between calls, to stay under provider rate limits
+const DEFAULT_PACE_MS = 4500; // 30 calls in about 2.5 minutes: under 15 requests per minute
+const RETRY_FALLBACK_MS = 5000;
+const RETRY_MAX_MS = 60000;
+
+function option(name) {
+  const at = process.argv.indexOf(name);
+  return at >= 0 ? process.argv[at + 1] : undefined;
+}
+const paceArg = option('--pace');
+const PACE_MS = paceArg === undefined ? DEFAULT_PACE_MS : Number(paceArg);
+if (!Number.isInteger(PACE_MS) || PACE_MS < 0 || PACE_MS > 600000) {
+  console.error('--pace needs a whole number of milliseconds between 0 and 600000.');
+  process.exit(2);
+}
+const outArg = option('--out');
+if (process.argv.includes('--out') && !outArg) {
+  console.error('--out needs a file path.');
+  process.exit(2);
+}
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// The provider reports the HTTP status but not how long a 429 asks us to wait. This wrapper
+// notes that one number from the response and nothing else. It never logs or keeps the
+// request, the response body or any header value other than the delay.
+let statedRetryMs = null;
+const upstreamFetch = globalThis.fetch;
+globalThis.fetch = async (...args) => {
+  const response = await upstreamFetch(...args);
+  statedRetryMs = null;
+  if (response.status === 429) {
+    try {
+      const header = response.headers.get('retry-after');
+      if (header && /^\d+(\.\d+)?$/.test(header.trim())) {
+        statedRetryMs = Number(header) * 1000;
+      } else if (header && !Number.isNaN(Date.parse(header))) {
+        statedRetryMs = Math.max(0, Date.parse(header) - Date.now());
+      } else {
+        const details = (await response.clone().json())?.error?.details;
+        for (const d of Array.isArray(details) ? details : []) {
+          const match = typeof d?.retryDelay === 'string' ? /^(\d+(?:\.\d+)?)s$/.exec(d.retryDelay) : null;
+          if (match) statedRetryMs = Number(match[1]) * 1000;
+        }
+      }
+    } catch {
+      statedRetryMs = null;
+    }
+  }
+  return response;
+};
 const SPOT_CHECKS = 10;
 
 function compile() {
@@ -78,24 +133,48 @@ try {
       console.error(`Not run: ${missing.join(' and ')} not set in this shell. Nothing was sent.`);
       process.exitCode = 2;
     } else {
-      const rows = [];
-      for (let i = 0; i < golden.length; i++) {
-        const facts = golden[i];
+      // One call with the proxy's time limit. Returns the numeric HTTP status (null if no
+      // response arrived) and a problem description built from fixed words: never the key,
+      // the request, the response body or an error message.
+      const callOnce = async (facts) => {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), config.limits.timeoutMs);
+        const trace = {};
         const t0 = performance.now();
         let reply;
         let problem = '';
         try {
-          reply = await provider.callGemini(facts, env, controller.signal);
+          reply = await provider.callGemini(facts, env, controller.signal, trace);
         } catch (error) {
-          // Name only: a provider error message could echo request details.
-          problem = controller.signal.aborted ? `no reply within ${config.limits.timeoutMs} ms` : `request failed (${error?.name ?? 'error'})`;
+          problem = `request failed (${error?.name ?? 'error'})`;
         } finally {
           clearTimeout(timer);
         }
         const ms = Math.round(performance.now() - t0);
-        if (!problem && reply === undefined) problem = 'provider returned no text (HTTP error, blocked, or not finished)';
+        const status = Number.isInteger(trace.upstream) ? trace.upstream : null;
+        if (!problem && typeof reply !== 'string') {
+          if (controller.signal.aborted) problem = `no reply within ${config.limits.timeoutMs} ms`;
+          else if (status !== null && (status < 200 || status > 299)) problem = `HTTP ${status}`;
+          else if (trace.reason === 'upstream_truncated') problem = `reply cut off at the token cap (HTTP ${status})`;
+          else if (trace.reason === 'not_configured') problem = 'key or model refused before sending';
+          else if (trace.stage === 'fetch') problem = `no HTTP response (${trace.err ?? 'error'})`;
+          else problem = `no usable text (HTTP ${status ?? 'none'})`;
+        }
+        return { reply, problem, status, ms };
+      };
+      console.log(`Pace: ${PACE_MS} ms between requests.`);
+      const rows = [];
+      for (let i = 0; i < golden.length; i++) {
+        const facts = golden[i];
+        let { reply, problem, status, ms } = await callOnce(facts);
+        if (status === 429) {
+          const wait = Math.min(RETRY_MAX_MS, Math.max(1000, Math.round(statedRetryMs ?? RETRY_FALLBACK_MS)));
+          console.log(`${String(i + 1).padStart(2)}/30 HTTP 429: one retry after ${wait} ms (${statedRetryMs === null ? 'no wait stated' : 'wait stated by the response'})`);
+          await sleep(wait);
+          ({ reply, problem, status, ms } = await callOnce(facts));
+          if (problem) problem += ' after one retry';
+        }
+        if (problem) console.log(`${String(i + 1).padStart(2)}/30 call failed: ${status === null ? 'no HTTP response' : `HTTP ${status}`}`);
         const verdict = problem ? { ok: false, reason: problem } : coach.validateCoachText(reply, facts);
         // The number guard runs on the validated text, as in the Worker and the client.
         // "n/a" when there is nothing to check (no reply, or the validator already refused it).
@@ -108,7 +187,7 @@ try {
           shown,
         });
         console.log(`${String(i + 1).padStart(2)}/30 validator ${verdict.ok ? 'pass' : 'FAIL'}, guard ${rows[i].guard}, ${shown ? 'shown' : 'TEMPLATE'} ${ms} ms${shown ? '' : ` (${verdict.ok ? numbers.reason : verdict.reason})`}`);
-        if (i < golden.length - 1) await new Promise((resolve) => setTimeout(resolve, PAUSE_MS));
+        if (i < golden.length - 1) await sleep(PACE_MS);
       }
 
       const passed = rows.filter((r) => r.ok).length;
@@ -158,10 +237,10 @@ try {
         ...rows.map((r) => `| ${r.n} | ${r.facts.headline} | ${r.ok ? 'pass' : '**FAIL**'} | ${r.guard === 'FAIL' ? '**FAIL**' : r.guard} | ${r.shown ? 'coach text' : 'template'} | ${cell(r.ok ? r.guardReason : r.reason)} | ${r.ms} | ${cell(r.reply) || '(none)'} | \`${cell(JSON.stringify(r.facts))}\` |`),
         '',
       ];
-      const dir = join(root, 'submission/coach-eval');
-      mkdirSync(dir, { recursive: true });
-      writeFileSync(join(dir, 'report.md'), lines.join('\n'));
-      console.log(`${shownCount}/${rows.length} shown (${rate}%), ${fallback} would fall back to the template (validator failed ${rows.length - passed}, number guard failed ${guardFailed}). Report: submission/coach-eval/report.md`);
+      const reportPath = outArg ? resolve(outArg) : join(root, 'submission/coach-eval/report.md');
+      mkdirSync(dirname(reportPath), { recursive: true });
+      writeFileSync(reportPath, lines.join('\n'));
+      console.log(`${shownCount}/${rows.length} shown (${rate}%), ${fallback} would fall back to the template (validator failed ${rows.length - passed}, number guard failed ${guardFailed}). Report: ${outArg ?? 'submission/coach-eval/report.md'}`);
       if (rate < 95) process.exitCode = 1;
     }
   }

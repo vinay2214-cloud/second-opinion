@@ -15,8 +15,10 @@
 //  4. "N of M" must have N among the counts and M among the denominators, with N <= M.
 //  5. The facts hold no count of shifts, rounds, advisors or people, so a number attached to
 //     one of those words is always rejected.
-// Spelled-out numbers (two ... twenty, thirty ... hundred) are treated like digits here.
-// "one" is left alone: "play one more shift" is ordinary advice, not a count.
+// Spelled-out numbers are treated like digits here: two ... twenty, the tens, compounds
+// with or without a hyphen ("thirty-three", "twenty one" up to ninety-nine) and "hundred"
+// ("one hundred", "a hundred"). A lone "one" is left alone: "play one more shift" is
+// ordinary advice, not a count.
 
 export type CoachNumberCheck = { ok: true; reason: null } | { ok: false; reason: string };
 
@@ -42,6 +44,13 @@ const TOTAL_LEAD = /^(across|over|all|total|throughout|among)$/;
 const FILLER = /^(the|all|your|those|these|just|only|of|a)$/;
 const BOUNDARY = /^[.!?,;:()]$/;
 
+/** Second half of a compound: "thirty-THREE". */
+const UNIT_WORDS: Record<string, number> = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9,
+};
+const has = (map: Record<string, number>, key: string): boolean => Object.prototype.hasOwnProperty.call(map, key);
+const isTens = (n: number | null): n is number => n !== null && n >= 20 && n <= 90 && n % 10 === 0;
+
 const isCount = (x: unknown): x is number => typeof x === 'number' && Number.isInteger(x) && x >= 0;
 
 function countsIn(facts: CountFacts): { counts: Set<number>; totals: Set<number>; rates: Set<number> } {
@@ -64,10 +73,29 @@ interface Token { text: string; value: number | null; percent: boolean }
 
 function tokenize(text: string): Token[] {
   const raw = text.toLowerCase().match(/\d+(?:\.\d+)?%?|[a-z]+(?:['’][a-z]+)?|[.!?,;:()%]/g) ?? [];
-  return raw.map((t) => {
-    if (/^\d/.test(t)) return { text: t, value: Number(t.replace('%', '')), percent: t.endsWith('%') };
-    return { text: t, value: t in WORD_NUMBERS ? WORD_NUMBERS[t] : null, percent: false };
-  });
+  const out: Token[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const t = raw[i];
+    const next = raw[i + 1];
+    if (/^\d/.test(t)) {
+      out.push({ text: t, value: Number(t.replace('%', '')), percent: t.endsWith('%') });
+      continue;
+    }
+    const value = has(WORD_NUMBERS, t) ? WORD_NUMBERS[t] : null;
+    // "thirty-three" and "twenty one" arrive as two words (the hyphen is not a token).
+    if (isTens(value) && next !== undefined && has(UNIT_WORDS, next)) {
+      out.push({ text: `${t}-${next}`, value: value + UNIT_WORDS[next], percent: false });
+      i++;
+      continue;
+    }
+    if (t === 'one' && next === 'hundred') {
+      out.push({ text: 'one hundred', value: 100, percent: false });
+      i++;
+      continue;
+    }
+    out.push({ text: t, value, percent: false });
+  }
+  return out;
 }
 
 /** Check the numbers in coach text against what the facts can support. */
