@@ -274,6 +274,16 @@ The owner deployed the Worker and a valid-looking request returned 204. Nothing 
 - Checks: 137 tests pass, tsc clean, parity 0 diffs, `wrangler deploy --dry-run` bundles.
 - To find the cause: redeploy this branch's Worker, run `npx wrangler tail`, send the curl test once, read the code.
 
+## Worker `upstream=none` fix (14 Nov, branch `agent/coach-deploy-prep`, not merged, not deployed)
+
+The deployed Worker logged `coach: reason=upstream_http upstream=none` for a valid request.
+
+- **Root cause, reproduced locally:** `server/coach-proxy/provider.ts` passed `redirect: 'error'` to `fetch`. Node accepts it, so every unit test passed; the Workers runtime throws a TypeError on it before sending anything. Running the bundled Worker in local workerd (miniflare from the wrangler package, a fake key, a local stub in place of Gemini) gave the same log line and the stub was never called. With `redirect: 'manual'` the same run reaches the stub and answers 200. The key was not the cause of this failure.
+- **Fix:** `redirect: 'manual'`; a 3xx is treated as a failed reply and never followed.
+- **Also added:** the key is trimmed and refused if it holds whitespace, control or non-ASCII characters, quotes, asterisks or angle brackets (`not_configured`, no request). The log line gains `stage=`, `err=` (error class name only) and three key-shape booleans. The provider no longer throws.
+- **Tests:** new `tests/coachProvider.test.ts` uses a fetch mock that refuses `redirect: 'error'` and builds real `Request` objects, so this defect now fails a unit test. 179 tests pass, tsc clean, parity 0 diffs, dry-run bundles.
+- **Not known:** whether Gemini accepts the request. No call has ever reached Gemini from this Worker. After the next deploy the log line will say which of the remaining outcomes applies.
+
 ## Next
 Waiting on the owner:
 1. Listen to the five cues once (any desktop browser after entering the emulator, or the headset tester) and accept or reject `proposals/audio-brief.md`. Deadline for the silent fallback: Fri 13 Nov evening.

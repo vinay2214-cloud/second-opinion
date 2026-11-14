@@ -169,11 +169,21 @@ CF-Connecting-IP supplies the bucket; missing values share a bucket. Origin
 checks are a browser safeguard, not authentication against arbitrary HTTP clients.
 
 The Worker never logs request bodies, facts, prompt text, model responses or keys.
-It writes one line per request with a fixed reason code and a numeric status:
+It writes one line per request: fixed codes, a numeric status and booleans only.
 
 ```
-coach: reason=<code> upstream=<Gemini HTTP status or none>
+coach: reason=<code> upstream=<Gemini HTTP status or none> stage=<step or none> err=<error class or none> key_len_ok=<bool> key_prefix_ok=<bool> key_charset_ok=<bool>
 ```
+
+- `stage` is the provider step that threw: build_url, build_headers, build_body, fetch or read_body.
+  `err` is only the thrown value's class name (TypeError, DOMException, SyntaxError), never its message or stack.
+- The three `key_*` flags describe the trimmed key's shape without revealing it: 39 characters long,
+  starts with `AIza`, only letters, digits, `_` and `-`. All true is what a standard Gemini key looks like;
+  a false flag is a hint, not proof, that the uploaded secret is wrong.
+- A key is trimmed, then refused (reason=not_configured, no request sent) if it holds whitespace, a control
+  or non-ASCII character, a quote, an asterisk or an angle bracket.
+- The call to Gemini uses `redirect: 'manual'`. The Workers runtime throws on `redirect: 'error'` before
+  sending anything; that was the cause of `reason=upstream_http upstream=none` on the first deploy.
 
 | Code | HTTP | Meaning |
 | --- | --- | --- |
@@ -185,10 +195,10 @@ coach: reason=<code> upstream=<Gemini HTTP status or none>
 | body_too_large | 413 | Over 2048 bytes. |
 | bad_json, bad_facts | 400 | Body is not JSON, or fails validateCoachFacts. |
 | rate_limited | 429 | Over 12 per IP per hour. |
-| not_configured | 204 | COACH_API_KEY or COACH_MODEL missing or malformed. No request sent. |
+| not_configured | 204 | COACH_API_KEY or COACH_MODEL missing, malformed or refused (see above). No request sent. |
 | upstream_http | 204 | Gemini answered with a non-2xx status (shown in upstream), or no response arrived (upstream=none). |
 | upstream_truncated | 204 | Gemini stopped at MAX_TOKENS: the 150-token cap, which includes thought tokens, cut the reply. |
-| upstream_empty | 204 | Gemini answered 2xx with no usable text (blocked, no candidates, other finish reason). |
+| upstream_empty | 204 | Gemini answered 2xx with no usable text (blocked, no candidates, other finish reason), or its body was not JSON (stage=read_body). |
 | upstream_timeout | 204 | No reply within 3 s. |
 | text_rejected | 204 | The reply failed validateCoachText. |
 | fallback | 204 | Anything else (client went away, unexpected error). |

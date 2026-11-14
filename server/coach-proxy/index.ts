@@ -1,8 +1,8 @@
 import { coachConfig as C } from '../../src/core/data.js';
 import { validateCoachFacts, validateCoachText } from '../../src/core/coach.js';
 import type { CoachFacts } from '../../src/core/coach.js';
-import { callGemini } from './provider.js';
-import { COACH_REASONS } from './types.js';
+import { callGemini, keyShape } from './provider.js';
+import { COACH_REASONS, COACH_STAGES } from './types.js';
 import type { CoachEnvironment, CoachProvider, CoachReason, CoachTrace } from './types.js';
 
 export interface CoachProxyOptions {
@@ -77,8 +77,9 @@ export function createCoachProxy({ provider = callGemini, now = Date.now }: Coac
     let origin: string | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let controller: AbortController | undefined;
-    // One log line per request: a fixed reason code and a numeric upstream status only.
-    // Nothing from the request, the key or the model text is ever logged.
+    // One log line per request: a fixed reason code, a numeric upstream status, the fixed
+    // name of a step that threw with the error's class name, and three booleans about the
+    // key's shape. Nothing from the request, the key, the model text or any error message.
     let reason: CoachReason = 'fallback';
     let logged = false;
     const trace: CoachTrace = {};
@@ -145,14 +146,21 @@ export function createCoachProxy({ provider = callGemini, now = Date.now }: Coac
         }
         const valid = validateCoachText(text, value);
         return valid.ok ? respond(200, 'ok', valid.text) : respond(204, 'text_rejected');
-      })().catch(() => respond(204, calling && trace.upstream === undefined ? 'upstream_http' : 'fallback'));
+      })().catch(() => respond(204, 'fallback'));
       return await Promise.race([work, timeout]);
     } catch {
       return respond(204, 'fallback');
     } finally {
       logged = true;
       const upstream = Number.isInteger(trace.upstream) ? String(trace.upstream) : 'none';
-      console.log(`coach: reason=${reason} upstream=${upstream}`);
+      const stage = COACH_STAGES.find((name) => name === trace.stage) ?? 'none';
+      const err = stage !== 'none' && typeof trace.err === 'string' && /^[A-Za-z][A-Za-z0-9]{0,39}$/.test(trace.err)
+        ? trace.err : 'none';
+      const shape = keyShape(env.COACH_API_KEY);
+      console.log(
+        `coach: reason=${reason} upstream=${upstream} stage=${stage} err=${err}`
+        + ` key_len_ok=${shape.len} key_prefix_ok=${shape.prefix} key_charset_ok=${shape.charset}`,
+      );
       if (timer !== undefined) clearTimeout(timer);
       request.signal.removeEventListener('abort', abort);
       abort();

@@ -184,7 +184,7 @@ test('missing server credentials or model never sends a provider request', async
 const curlFacts = {"v":1,"headline":"overReliance","index":0,"disagreements":4,"overRelianceRate":100,"underRelianceRate":0,"verifyYield":null,"drift":{"advisor":"Dash","category":"children","noticed":false},"pressureDrop":false,"patterns":[{"kind":"followedTooOften","advisor":"Dash","category":"children","count":4,"of":4,"adviceRight":0}]};
 const FAKE_KEY = 'FAKE-KEY-0123456789-not-a-real-credential';
 const MODEL_TEXT = 'You followed Dash on children cases 4 of 4 times. Next shift, verify Dash once before you commit.';
-const LINE = new RegExp(`^coach: reason=(${COACH_REASONS.join('|')}) upstream=(none|[1-5]\\d\\d)$`);
+const LINE = new RegExp(`^coach: reason=(${COACH_REASONS.join('|')}) upstream=(none|[1-5]\\d\\d) stage=(none|build_url|build_headers|build_body|fetch|read_body) err=(none|[A-Za-z][A-Za-z0-9]{0,39}) key_len_ok=(true|false) key_prefix_ok=(true|false) key_charset_ok=(true|false)$`);
 
 function spyLog() {
   const lines: string[] = [];
@@ -209,7 +209,9 @@ test('every outcome logs exactly one fixed reason code and a numeric upstream st
     lines.length = 0;
     const response = await createCoachProxy()(req, e);
     expect(response.status).toBe(expectStatus);
-    expect(lines).toEqual([expectLine]);
+    expect(lines.length).toBe(1);
+    expect(lines[0]).toMatch(LINE);
+    expect(lines[0].startsWith(expectLine + ' stage=')).toBe(true);
   };
   gemini(200, candidate('STOP', [{ text: MODEL_TEXT }]));
   await run(200, 'coach: reason=ok upstream=200', request(curlFacts));
@@ -239,14 +241,14 @@ test('rate limit and provider timeout are logged by code', async () => {
   const proxy = createCoachProxy({ provider: ok });
   for (let i = 0; i < C.limits.rateLimitPerIpPerHour; i++) await proxy(request(), env);
   expect((await proxy(request(), env)).status).toBe(429);
-  expect(lines[lines.length - 1]).toBe('coach: reason=rate_limited upstream=none');
+  expect(lines[lines.length - 1].startsWith('coach: reason=rate_limited upstream=none stage=none err=none ')).toBe(true);
 
   vi.useFakeTimers();
   const never = vi.fn<CoachProvider>(() => new Promise(() => {}));
   const pending = createCoachProxy({ provider: never })(request(), env);
   await vi.advanceTimersByTimeAsync(C.limits.timeoutMs);
   expect((await pending).status).toBe(204);
-  expect(lines[lines.length - 1]).toBe('coach: reason=upstream_timeout upstream=none');
+  expect(lines[lines.length - 1].startsWith('coach: reason=upstream_timeout upstream=none stage=none err=none ')).toBe(true);
 });
 
 test('no log line ever contains the key, the body, the prompt or the model text', async () => {
