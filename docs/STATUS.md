@@ -18,8 +18,8 @@ Evidence paths are under `spikes/evidence/`. Last update: Wed 11 Nov 2026.
 | T11 gap review | Done, see "Gap review" below | |
 | T16 coach prompt evaluation | Tool and 30 fact sets written. **Not run**: waiting for the owner to say the key is set | `tools/coach-eval.mjs` |
 | T14 polish, debug, safe mode | Done except the items listed below | `T14-*.png` |
-| T15 coach client and proxy (Astra) | Merged into `main` (`0034e0a`). **Worker prepared, not deployed**; model `gemini-3.5-flash-lite`; key handling: `.dev.vars` (gitignored) -> wrangler secret. No proxy URL set. See "Worker deploy prep" below | `server/coach-proxy/README.md` |
-| T17 coach button | Built; tested against a mock proxy only. Off in the live build until the owner sets `VITE_COACH_PROXY_URL` | `T17-*.png` |
+| T15 coach client and proxy (Astra) | Merged. Worker deployed by the owner and answering 200; kill switch tested by the owner. Model `gemini-3.5-flash-lite`; key handling: `.dev.vars` (gitignored) -> wrangler secret | `server/coach-proxy/README.md` |
+| T17 coach button | Built and **on in the live build** (`VITE_COACH_PROXY_URL` set, Worker live). One real reply seen in the emulator through the live Worker; fallback seen. Not yet pressed on the live page itself. See "Coach against the live Worker" | `T17-*.png` |
 | Stage D: QA, submission check, footage kit | D1 to D3 done; `rc1` tagged on the emulator bar (Stage 1). Footage now has the Orator and drift moments on seed `ward-128` | `submission/footage/` |
 
 ## A0 sync
@@ -284,10 +284,33 @@ The deployed Worker logged `coach: reason=upstream_http upstream=none` for a val
 - **Tests:** new `tests/coachProvider.test.ts` uses a fetch mock that refuses `redirect: 'error'` and builds real `Request` objects, so this defect now fails a unit test. 179 tests pass, tsc clean, parity 0 diffs, dry-run bundles.
 - **Not known:** whether Gemini accepts the request. No call has ever reached Gemini from this Worker. After the next deploy the log line will say which of the remaining outcomes applies.
 
+## Coach against the live Worker (14 Nov, emulator, `main` at `6960900`)
+
+`agent/coach-deploy-prep` is merged into `main` (`6960900`): tsc clean, 179 tests, parity 0 diffs, build OK. The Pages deploy for that commit finished with success. The live bundle contains the Worker URL, so the live build has the coach button.
+
+**How this was tested, and what that does not cover.** The emulator only exists on the local dev server; the Pages build does not include it, so the live page cannot be driven by the emulator. The same commit was run locally with `VITE_COACH_PROXY_URL` set to the live Worker. The Worker (correctly) refuses the local origin, so for the success case a test helper forwarded the game's request to the real Worker with the live site's `Origin` and passed the reply back. The game code, the request body, the Worker and the model reply were real; the origin was substituted. **Not done:** a coach press on the live page itself, on a desktop browser or a headset. That is one tap for the owner or the Quest tester.
+
+**Shift.** Module 3, `?seed=ward-128` (set through the dev-only override), all 14 patients played: right answer committed and kept each time. Debrief: calibration index 100, 5 disagreements, drift noticed, score 182, `match=true`, 0 console warnings or errors during the shift. The review panel shows "Poke Map for your trust map, Ask the coach, or a module to play again." and "Ask the coach: Sends your shift summary numbers (no personal data) to an AI service." (`T17-11-live-worker-debrief.png`).
+
+**Success (real Worker, real model).** One press sent one POST of 224 bytes. The Worker answered 200 in about 1.6 s. The panel changed to a card headed **"Coach (AI)"** with the text, then "Poke Back for your shift review." (`T17-13-live-worker-coach-card.png`). The reply was: "You showed a balanced approach across 100 cases, disagreeing with advisors 5 times. Keep monitoring the breathing category closely where Dash was noticed." The "Coach is thinking" state was too short to capture. No console error.
+
+- **Quality problem in that reply:** "across 100 cases" is wrong. 100 is the calibration index; the shift had 14 patients. Every number is in the facts, so both validators passed it. "Where Dash was noticed" is also clumsy. This is one reply, not a rate; `tools/coach-eval.mjs` (T16, still not run) is the way to measure it, and the fix would be in the system prompt in `data/coach-prompt.json` (owner or Astra; not edited here).
+
+**Worker disabled.** Not tested against the real kill switch from the game: flipping it needs a deploy, which is the owner's. Two stand-ins, both on the same build:
+
+| Case | What the player sees | Evidence |
+|---|---|---|
+| Disabled reply simulated: the request was answered with what the Worker sends when `COACH_ENABLED` is not true (503, no body). Idle Module 2 shift | Card headed "Coach", "The coach is offline. Here is your summary.", then the template headline and next step, then "Poke Back for your shift review." `[coach] shown source=template reason=unavailable` | `T17-15-worker-disabled-fallback.png` |
+| Real Worker refusing the request (the unforwarded local origin: 403 with no CORS header, which the browser blocks exactly as it would a real 503 from the disabled Worker). Played ward-128 shift, three times | The same "Coach" card with the template text | `T17-14-real-worker-refused-origin-fallback.png` |
+
+In both, the game showed no error text, did not stall, and Back, Map and the module buttons worked as before. The game itself logged nothing at error level. The browser wrote its own network lines to the console (two or three per failed request: "Failed to load resource" or the CORS message); page code cannot suppress those, and a player in a headset never sees them.
+
+**Requests made to the real Worker in this session:** one that reached the model (the success above) and three refused at the origin check (not counted by the rate limiter). No key was read or printed.
+
 ## Next
 Waiting on the owner:
 1. Listen to the five cues once (any desktop browser after entering the emulator, or the headset tester) and accept or reject `proposals/audio-brief.md`. Deadline for the silent fallback: Fri 13 Nov evening.
-2. Deploy the Worker: fill `server/coach-proxy/.dev.vars`, `npx wrangler login`, `./deploy.sh`, then the four curl tests in `server/coach-proxy/README.md`. Then set the repository variable `VITE_COACH_PROXY_URL` to `https://second-opinion-coach.<your-subdomain>.workers.dev/coach` and re-run the deploy workflow. After that, one real coach tap on the live build.
+2. One coach tap on the live page itself (desktop cannot enter the game without a headset or the emulator, so this is the Quest tester's or yours on a headset). Decide whether the "across 100 cases" style of error matters enough to tighten the system prompt before the freeze.
 3. Say when `COACH_API_KEY` and `COACH_MODEL` are set in the shell, so `tools/coach-eval.mjs` can be run; then spot-check 10 replies in `submission/coach-eval/report.md`.
 4. Fix the submission text items in Stage D2 (not edited by me).
 5. One fresh person for the tutorial and "it looks clean"; the Quest tester for everything marked emulator only.
