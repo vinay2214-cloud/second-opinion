@@ -326,6 +326,8 @@ The live coach said "across 100 cases" when 100 was the calibration index. Two c
 - Checks: 233 tests pass, tsc clean, parity 0 diffs, core-spec 40/40, dry-run bundles.
 - **Not tested:** whether the new wording rules change what the model writes, and the tool's pacing and retry against the real service.
 
+Coach evaluation 15 Nov: 27 of 30 shown (90%), 3 fallbacks all correct or conservative; no medical claim in any shown reply; coach frozen.
+
 ## Next
 Waiting on the owner:
 1. Listen to the five cues once (any desktop browser after entering the emulator, or the headset tester) and accept or reject `proposals/audio-brief.md`. Deadline for the silent fallback: Fri 13 Nov evening.
