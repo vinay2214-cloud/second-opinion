@@ -89,6 +89,53 @@ test.each<[string, string, CoachFacts]>([
   expect(pipeline(text, facts)).toEqual({ ok: true, by: 'none', reason: '' });
 });
 
+// --- Spelled-out compound numbers -----------------------------------------------------------
+
+const withRates = (over: number | null, under: number | null, verify: number | null): CoachFacts => ({
+  ...live, overRelianceRate: over, underRelianceRate: under, verifyYield: verify,
+});
+
+test.each<[string, string, CoachFacts]>([
+  ['thirty-three percent, over rate 33', 'You followed wrong advice thirty-three percent of the time. Keep watching Dash on breathing cases.', withRates(33, null, null)],
+  ['thirty three percent (no hyphen), under rate 33', 'You overruled right advice thirty three percent of the time. Keep watching Dash on breathing cases.', withRates(0, 33, null)],
+  ['Thirty-three at sentence start, verify yield 33', 'Thirty-three percent of your checks changed your answer. Keep watching Dash on breathing cases.', withRates(0, null, 33)],
+  ['twenty-five percent, over rate 25', 'You followed wrong advice twenty-five percent of the time. Keep watching Dash on breathing cases.', withRates(25, null, null)],
+  ['forty-five per cent, under rate 45', 'You overruled right advice forty-five per cent of the time. Keep watching Dash on breathing cases.', withRates(0, 45, null)],
+  ['ninety-nine percent, over rate 99', 'You followed wrong advice ninety-nine percent of the time. Keep watching Dash on breathing cases.', withRates(99, null, null)],
+  ['twenty one percent, over rate 21', 'You followed wrong advice twenty one percent of the time. Keep watching Dash on breathing cases.', withRates(21, null, null)],
+  ['one hundred percent, over rate 100', 'You followed wrong advice one hundred percent of the time. Next shift, verify Dash once before you commit.', dash],
+  ['thirty percent then a separate count', 'You followed wrong advice thirty percent of the time, and disagreed five times. Keep watching Dash.', withRates(30, null, null)],
+])('compound number passes: %s', (_name, text, facts) => {
+  expect(checkCoachNumbers(text, facts)).toEqual({ ok: true, reason: null });
+  expect(pipeline(text, facts)).toEqual({ ok: true, by: 'none', reason: '' });
+});
+
+test.each<[string, string, CoachFacts, string]>([
+  ['thirty-three percent, no rate is 33', 'You followed wrong advice thirty-three percent of the time. Keep watching Dash on breathing cases.', live, 'percentage not a rate in facts: 33'],
+  ['thirty-three percent when a rate is 3', 'You followed wrong advice thirty-three percent of the time. Keep watching Dash on breathing cases.', withRates(3, null, null), 'percentage not a rate in facts: 33'],
+  ['thirty-three percent when a rate is 30', 'You followed wrong advice thirty-three percent of the time. Keep watching Dash on breathing cases.', withRates(30, null, null), 'percentage not a rate in facts: 33'],
+  ['twenty-five percent, no rate is 25', 'You followed wrong advice twenty-five percent of the time. Keep watching Dash on breathing cases.', live, 'percentage not a rate in facts: 25'],
+  ['twenty-five percent when a rate is 5', 'You followed wrong advice twenty-five percent of the time. Keep watching Dash on breathing cases.', withRates(5, null, null), 'percentage not a rate in facts: 25'],
+  ['one hundred percent, no rate is 100', 'You were right one hundred percent of the time. Keep watching Dash on breathing cases.', live, 'percentage not a rate in facts: 100'],
+  ['forty-five cases', 'You handled forty-five cases well. Keep watching Dash on breathing cases.', live, 'count not in facts: 45 cases'],
+  ['across one hundred cases', 'You were balanced across one hundred cases. Keep watching Dash on breathing cases.', live, 'total not in facts: 100 cases'],
+  ['twenty-one patients', 'You saw twenty-one patients this shift. Keep watching Dash on breathing cases.', live, 'count not in facts: 21 patients'],
+])('compound number rejected: %s', (_name, text, facts, reason) => {
+  expect(checkCoachNumbers(text, facts)).toEqual({ ok: false, reason });
+});
+
+test('words that only look like object keys are not numbers', () => {
+  expect(checkCoachNumbers('The constructor of your pattern is trust. Keep watching Dash on breathing cases.', live).ok).toBe(true);
+});
+
+test('the system prompt carries the wording rules', () => {
+  for (const phrase of ['never write JSON field names or code words', 'followedTooOften', 'pressureDrop',
+    'Never use the words treat, treating, treatment, diagnose or symptom', 'only by its number; never call it balanced, perfect or good',
+    'same advisor and category as the pattern or change you just described', 'Do not use the first person']) {
+    expect(C.system).toContain(phrase);
+  }
+});
+
 test('guard input edge cases never throw', () => {
   expect(checkCoachNumbers(undefined, live).ok).toBe(false);
   expect(checkCoachNumbers('Plain text.', null).ok).toBe(false);
