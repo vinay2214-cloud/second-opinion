@@ -328,6 +328,9 @@ The live coach said "across 100 cases" when 100 was the calibration index. Two c
 
 Coach evaluation 15 Nov: 27 of 30 shown (90%), 3 fallbacks all correct or conservative; no medical claim in any shown reply; coach frozen.
 
+## Final freeze pass (15 Nov)
+Evidence in `submission/FINAL-CHECKLIST-EVIDENCE.md`: claims check (14 of 17 pass, most in the emulator only; 2 unverified: real plane detection with the 5 s fallback, and true offline play; the Sound toggle exists but its default is ON, not OFF), the cues rendered to `submission/audio/`, eight gameplay clips in `submission/video/clips/` (emulator, 800×712 view scaled to 1080p, no sound), and a fresh-profile load of the live site (0 console errors, 0 failed requests, default and `?safe=1`). No game code changed; `submission-1` not tagged.
+
 ## Next
 Waiting on the owner:
 1. Listen to the five cues once (any desktop browser after entering the emulator, or the headset tester) and accept or reject `proposals/audio-brief.md`. Deadline for the silent fallback: Fri 13 Nov evening.
