@@ -318,7 +318,7 @@ The live coach said "across 100 cases" when 100 was the calibration index. Two c
 - **Limits:** the guard checks numbers, not meaning. It does not catch a wrong statement with no number, a real count attached to the wrong noun, or a counting word more than two words from its number. `tools/coach-eval.mjs` now runs the guard on every reply and reports both verdicts and how many replies would fall back to the template; it has no tests and has still never been run (its compile set and the guard call were checked separately).
 - **Not tested:** whether the new prompt actually makes the model stop doing this. That needs a deploy and real replies.
 
-## Coach polish (15 Nov, branch `agent/coach-polish`, not merged, not deployed)
+## Coach polish (15 Nov, merged into `main`; Worker not redeployed)
 
 - **Number guard:** spelled-out compound numbers now parse ("thirty-three" and "thirty three" = 33, up to ninety-nine, and "one hundred"). Before, "thirty-three percent" was read as 3 and a correct reply was rejected. Words that are also JavaScript object keys ("constructor") are no longer mistaken for numbers.
 - **Prompt** (`system` string only): wording rules added. No field names or code words; never the words treat, treating, treatment, diagnose, symptom; the index described only by its number; the next step about the same advisor and category as the pattern or change described; no first person. The Worker must be redeployed for the model to see them.
