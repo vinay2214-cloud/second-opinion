@@ -1,6 +1,6 @@
 # Known issues (no need to report these)
 
-- **There is no sound.** Every event is shown visually.
+- **Sound is off by default.** Turn it on with the Sound button in the Menu. Every event is also shown visually.
 - **A shift ends at the review screen.** Poke Map for the trust map, or a module button to play again. There is no further ending.
 - **The same patients appear every time** you play the same module. That is intentional for testing.
 - **Calm mode** (in the Menu) takes effect from the next shift, not the current one.

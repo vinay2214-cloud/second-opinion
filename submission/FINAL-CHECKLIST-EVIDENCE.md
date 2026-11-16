@@ -19,7 +19,7 @@ Everything here was checked in the IWSDK emulator (emulated hands, Chromium) or 
 | 11 | Clock freezes when hand tracking drops | PASS (emulator) | `src/game/systems/ShiftSystem.ts:78`; `spikes/evidence/T12-tracking-lost.png`; STATUS D1 checklist. Real tracking loss on a headset never tested |
 | 12 | Plane detection with virtual-table fallback after 5 s | UNVERIFIED | `src/scene/config.ts` `planeTimeoutSec: 5`; plane placement in the emulator's synthetic room (`spikes/evidence/T03-plane-placed.png`). Real plane detection and the 5 s timeout path have never run on a headset; desktop takes a separate path (`placed mode=virtual how=desktop`) |
 | 13 | Every action possible with one hand | PASS (emulator) | STATUS D1 checklist "one hand"; `footage/12d`; settings text "One hand is enough for everything". Not tried with one real hand |
-| 14 | Sound toggle exists, and its default | Toggle PASS; default is **ON** | Toggle in the settings row (`video/clips/08-*.mp4`, "Sound ON"). `src/access/access.ts` "Sound is on unless the player switched it off"; a fresh profile on the live site logs `sound=true`. **FAIL against "keep Sound default OFF"**: changing it is a game-code change, not made |
+| 14 | Sound toggle exists, and its default | PASS (default OFF, changed 16 Nov) | Toggle in the settings row (`video/clips/08-*.mp4` was recorded before the change and shows "Sound ON"). `src/access/access.ts` "Sound is off unless the player switched it on"; a fresh profile on a built copy logs `sound=false`, and the Sound button turns it on |
 | 15 | Coach button only when the proxy URL is set, with template fallback | PASS (emulator + live bundle) | `spikes/evidence/T17-01` (URL unset: no button), `T17-13` (real reply), `T17-14`, `T17-15` (fallback); live site logs `[coach] button available` and its bundle contains the Worker URL. The button itself is only drawn on the debrief, which a desktop browser cannot reach |
 | 16 | Works with no network after load, except the coach button | UNVERIFIED | The base game makes no request after start (STATUS FR-62; the live page fetched 4 files at load and nothing else). Offline was only simulated inside the page (`T17-04`); true offline makes the emulator relaunch its browser. Whether entering XR on a headset fetches anything more was not checked |
 | 17 | Footer "Fictional game logic. Not medical advice." | PASS | `src/scene/ward.ts:211`; visible in `live-test/live-default.png` and every clip |
@@ -39,7 +39,7 @@ Rendered to `submission/audio/` (details and method in `audio/README.md`):
 
 - Gain cap: master gain 0.18 (-14.9 dBFS) on notes of at most 1.0. No limiter: the stamp's two overlapping notes reach 0.188 (-14.5 dBFS), the only cue above the cap.
 - Rendered from the recipes in `src/audio/cues.ts` by Chromium's offline Web Audio engine, 48 kHz mono 16-bit.
-- **Sound default:** the game ships with Sound on. Not changed (see claim 14).
+- **Sound default:** off since 16 Nov; the player turns it on in settings (see claim 14).
 
 ## 3. Video clips
 

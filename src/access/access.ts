@@ -36,12 +36,12 @@ function saveTutorial(flags: TutorialFlags): void {
   }
 }
 
-/** Sound is on unless the player switched it off. */
+/** Sound is off unless the player switched it on. */
 function loadSound(): boolean {
   try {
-    return safeStorage.get(SOUND_KEY) !== 'off';
+    return safeStorage.get(SOUND_KEY) === 'on';
   } catch {
-    return true;
+    return false;
   }
 }
 

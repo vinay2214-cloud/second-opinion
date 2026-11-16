@@ -23,4 +23,4 @@ Each cue has a visual twin (stamp flash, advice text, "Second opinion: 1 token s
 - Loudest cue: stamp, -14.5 dBFS peak. Quietest: verify, -22.2 dBFS peak.
 
 ## Default
-The game ships with Sound **on** (`src/access/access.ts`: "Sound is on unless the player switched it off"; a fresh profile on the live site logs `sound=true`). The Sound toggle in the settings menu turns it off and the choice is remembered.
+The game ships with Sound **off** (`src/access/access.ts`: "Sound is off unless the player switched it on"; a fresh profile logs `sound=false`). The Sound toggle in the settings menu turns it on and the choice is remembered.
