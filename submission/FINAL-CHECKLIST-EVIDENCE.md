@@ -48,18 +48,22 @@ Rendered to `submission/audio/` (details and method in `audio/README.md`):
 | Clip | Shows | Length |
 |---|---|---|
 | `01-token-placed-advisor-disagrees.mp4` | Surge patient 6: token to Green; Sage: "Cautious call: Amber" | 10.6 s |
-| `02-table-and-ward.mp4` | Looking round the room, then the table, advisors, trays and modules | 13.3 s |
+| `02-table-and-ward.mp4` | Re-shot 16 Nov: fixed raised head pose; start panel, advisors, trays and the three module buttons in frame throughout | 10.0 s |
 | `03-read-commit-advice-keep-reveal.mp4` | Patient 1: poke the card, commit Amber, Dash agrees, Keep, answer Amber | 30.8 s |
 | `04-orator-confident-wrong-overruled.mp4` | Patient 3: commit Red; "Orator, very sure: Amber… stake my reputation"; Keep; answer Red | 15.4 s |
 | `05-verify-token-clock-jump.mp4` | Patient 4: commit Amber, ask Orator; "Second opinion: 1 token spent, clock +3 s", a pip goes out | 23.2 s |
 | `06-update-installed-drifted-advisor-wrong.mp4` | Patient 9: Dash with "update installed" says Amber; Keep Red; answer Red | 16.4 s |
-| `07-debrief-index-rates-trust-map.mp4` | Shift review (index 100, rates, finding, next step), then the trust map | 12.3 s |
+| `07-debrief-index-rates-trust-map.mp4` | Re-shot 16 Nov on a fresh profile, from a run that followed Orator at patient 3 (wrong): whole review panel with title, "Calibration index: 80", "Followed wrong advice: 20%", the Dash finding, "Day streak: 1 · Shifts recorded: 1"; then Map: "Orator · injury: you followed 1 of 2, Orator was right 0" | 12.0 s |
 | `08-trays-contrast-bigtext-calm.mp4` | Settings: Contrast, Big text, Calm on; Module 1 with the ghost-hand tutorial, a token committed | 52.8 s |
+| `09-ask-the-coach.mp4` | From that debrief, one press of "Ask the coach": thinking, then a real "Coach (AI)" reply from the live Worker (HTTP 200). The reply misstates a number, see below | 8.0 s |
 
 - **Method:** Chrome DevTools screencast of the emulator page (Playwright `recordVideo` cannot be used: the emulator owns the browser context). Frames are kept with their real timestamps, then encoded at 30 fps, H.264, no audio.
 - **Resolution:** files are 1920×1080, but the emulator draws the headset view at a fixed **800×712**. That view is cropped out, scaled up 1.5× and pillarboxed with dark bars. They are softer than native 1080p.
 - **On screen:** only the emulator's 3D view; no browser chrome, address bar, account or personal data. The emulator's own toolbar is cropped out.
 - **No sound** in the clips (the screencast carries none); `submission/audio/` has the cues for the edit.
+- **Re-shoot of 02, 07 and 09 (16 Nov):** emulator storage cleared first (`video/scripts/clear-storage.mjs`), so the panel shows one shift and streak 1. Shift on `ward-128` (`video/scripts/play-follow-orator.sh`): right everywhere except patient 3, where the player committed Red and then moved the token to Orator's Amber. Score 164, index 80, over-reliance 20%, `[debrief] match=true`, 0 console errors. Check stills: `video/check/`.
+- **Clip 09's coach reply:** "The calibration index is 80, showing you agree with Dash on breathing 5 times. Next shift, check Dash on breathing advice before you decide." The "5 times" is wrong in meaning: 5 is the shift's disagreements, and the trust map shows Dash on breathing followed 0 of 1. It passed both validators because 5 is a real count in the facts (the guard's known limit). The coach is frozen; this reply is one real sample, not a fallback. Consider not using clip 09, or cutting before the text is readable.
+- The coach press in clip 09 went through the test helper that sends the request to the live Worker with the live site's Origin (the Worker refuses the local dev origin); one request, HTTP 200 in about 2 s.
 - Scripted hands, not a person. The re-run scripts are in `video/scripts/` (`record-clips.sh`, `record-08.sh`, `encode.mjs`); they need the dev server with `seed: 'ward-128'` set in `src/game/testRun.ts`, which is not committed.
 - The capture tool resizes the window, which made three.js log "Can't change size while VR device is presenting" warnings during recording. They come from the recording, not the game.
 
